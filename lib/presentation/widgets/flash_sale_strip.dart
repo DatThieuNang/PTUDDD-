@@ -1,0 +1,165 @@
+﻿import "dart:async";
+import "package:flutter/material.dart";
+import "package:provider/provider.dart";
+import "../../application/state/app_state.dart";
+import "../../core/utils/money.dart";
+import "../../data/datasources/memory.dart" show MemoryDataSource;
+import "../../domain/entities/entities.dart";
+import "../pages/detail/book_detail.dart";
+
+class FlashSaleStrip extends StatefulWidget {
+  const FlashSaleStrip({super.key});
+
+  @override
+  State<FlashSaleStrip> createState() => _FlashSaleStripState();
+}
+
+class _FlashSaleStripState extends State<FlashSaleStrip> {
+  Timer? _t;
+  Duration _left = Duration.zero;
+  DateTime? _end;
+
+  @override
+  void initState() {
+    super.initState();
+    _tick();
+    _t = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+  }
+
+  void _tick() {
+    final app = context.read<AppState>();
+    final now = DateTime.now();
+
+    final sales = app.catalog.where((b) =>
+        b.salePercent > 0 && b.flashSaleEnd != null && b.flashSaleEnd!.isAfter(now)).toList();
+    sales.sort((a,b) => a.flashSaleEnd!.compareTo(b.flashSaleEnd!));
+
+    _end = sales.isNotEmpty ? sales.first.flashSaleEnd : null;
+    setState(() {
+      _left = _end == null ? Duration.zero : _end!.difference(now);
+    });
+  }
+
+  @override
+  void dispose() {
+    _t?.cancel();
+    super.dispose();
+  }
+
+  String _fmt(Duration d) {
+    if (d.isNegative) return "00:00:00";
+    final h = d.inHours.toString().padLeft(2,"0");
+    final m = (d.inMinutes % 60).toString().padLeft(2,"0");
+    final s = (d.inSeconds % 60).toString().padLeft(2,"0");
+    return "${h}:${m}:${s}";
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final app = context.watch<AppState>();
+    final now = DateTime.now();
+    final saleBooks = app.catalog.where((b) =>
+      b.salePercent > 0 && b.flashSaleEnd != null && b.flashSaleEnd!.isAfter(now)).toList();
+
+    if (saleBooks.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
+          child: Row(
+            children: [
+              const Icon(Icons.flash_on, color: Colors.orange),
+              const SizedBox(width: 6),
+              const Text("Flash Sale", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(_fmt(_left), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(
+          height: 190, // tăng nhẹ để không overflow
+          child: ListView.separated(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            scrollDirection: Axis.horizontal,
+            itemBuilder: (_, i) {
+              final b = saleBooks[i];
+              return InkWell(
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => BookDetail(book: b))),
+                child: Container(
+                  width: 160,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    color: Colors.white,
+                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 6, offset: const Offset(0,3))],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ClipRRect(
+                        borderRadius: const BorderRadius.only(topLeft: Radius.circular(14), topRight: Radius.circular(14)),
+                        child: SizedBox(
+                          height: 106, width: 160,
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              MemoryDataSource.safeImage(b.image, fit: BoxFit.cover),
+                              // pill giảm giá bên trong ảnh, không tràn
+                              Positioned(
+                                left: 6, top: 6,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.redAccent,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text("-${b.salePercent}%",
+                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(10, 8, 10, 6),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(b.title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontWeight: FontWeight.w700)),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Text(formatVnd(b.salePrice),
+                                  style: const TextStyle(fontWeight: FontWeight.w800)),
+                                const SizedBox(width: 6),
+                                Text(formatVnd(b.price),
+                                  style: const TextStyle(decoration: TextDecoration.lineThrough, color: Colors.black45, fontSize: 12)),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemCount: saleBooks.length,
+          ),
+        ),
+      ],
+    );
+  }
+}

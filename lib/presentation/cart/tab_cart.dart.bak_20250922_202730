@@ -1,0 +1,76 @@
+﻿import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../application/state/app_state.dart';
+import '../../core/utils/money.dart';
+import '../../data/datasources/memory.dart' show MemoryDataSource;
+
+class TabCart extends StatelessWidget {
+  const TabCart({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final app = context.watch<AppState>();
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Giỏ hàng'),
+        actions: [
+          IconButton(
+            tooltip: 'Xoá toàn bộ',
+            onPressed: app.cart.isEmpty ? null : () => app.clearCart(),
+            icon: const Icon(Icons.delete_sweep_outlined),
+          ),
+        ],
+      ),
+      body: app.cart.isEmpty
+          ? const Center(child: Text('Giỏ hàng trống'))
+          : ListView.separated(
+              itemCount: app.cart.length,
+              separatorBuilder: (_, __) => const Divider(height: 1),
+              itemBuilder: (context, i) {
+                final item = app.cart[i];
+                return ListTile(
+                  leading: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: SizedBox(
+                      width: 56, height: 56,
+                      child: MemoryDataSource.safeImage(item.book.image, fit: BoxFit.cover),
+                    ),
+                  ),
+                  title: Text(item.book.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  subtitle: Text(' / cuốn'),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(onPressed: () => app.decOne(item.book.id),
+                        icon: const Icon(Icons.remove_circle_outline)),
+                      Text(''),
+                      IconButton(onPressed: () => app.incOne(item.book.id),
+                        icon: const Icon(Icons.add_circle_outline)),
+                      IconButton(onPressed: () => app.removeItem(item.book.id),
+                        icon: const Icon(Icons.delete_outline)),
+                    ],
+                  ),
+                );
+              },
+            ),
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.all(16),
+        child: ElevatedButton(
+          onPressed: app.cart.isEmpty ? null : () async {
+            await app.checkout();
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Đặt hàng thành công!')),
+              );
+            }
+          },
+          style: ElevatedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          ),
+          child: Text('Thanh toán  '),
+        ),
+      ),
+    );
+  }
+}

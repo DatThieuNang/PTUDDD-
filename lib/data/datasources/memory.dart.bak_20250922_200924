@@ -1,0 +1,176 @@
+﻿import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../domain/entities/entities.dart';
+
+class MemoryDataSource {
+  static const _cartKey = 'cart_items';
+  static const _wishlistKey = 'wishlist_ids';
+  static const _ordersKey = 'orders';
+
+  // Catalog mock (ảnh URL) + DESCRIPTION theo loại
+  final List<Book> catalog = const [
+    Book(
+      id:'b1',
+      title:'Bóng đá cơ bản',
+      author:'Nguyễn A',
+      price:85000,
+      image:'https://images.unsplash.com/photo-1517927033932-b3d18e61fb3a',
+      category:'Football',
+      description:'Nhập môn bóng đá cho người mới: luật thi đấu, vị trí, kỹ thuật khống chế và chuyền bóng, bài tập thể lực cơ bản.',
+    ),
+    Book(
+      id:'b2',
+      title:'Yoga cho người mới',
+      author:'Trần B',
+      price:99000,
+      image:'https://images.unsplash.com/photo-1552196563-55cd4e45efb3',
+      category:'Fitness',
+      description:'30 ngày khai mở cơ thể với các tư thế cơ bản, hít thở, kéo giãn an toàn. Lộ trình nhẹ nhàng phù hợp người bận rộn.',
+    ),
+    Book(
+      id:'b3',
+      title:'Chiến thuật bóng rổ',
+      author:'Lê C',
+      price:120000,
+      image:'https://images.unsplash.com/photo-1517649763962-0c623066013b',
+      category:'Basketball',
+      description:'Pick-and-roll, zone defense, spacing và set play hiện đại. Phân tích trận đấu và bài tập triển khai trong CLB.',
+    ),
+    Book(
+      id:'b4',
+      title:'Dinh dưỡng thể thao',
+      author:'Phạm D',
+      price:110000,
+      image:'https://images.unsplash.com/photo-1490645935967-10de6ba17061',
+      category:'Fitness',
+      description:'Cân bằng macro, hydrat hóa, phục hồi sau buổi tập. Thực đơn 730 ngày cho runner, gym và bóng đá.',
+    ),
+    Book(
+      id:'b5',
+      title:'Kỹ thuật sút phạt',
+      author:'Võ E',
+      price:89000,
+      image:'https://images.unsplash.com/photo-1461896836934-ffe607ba8211',
+      category:'Football',
+      description:'Tư thế chạy đà, điểm chạm, quỹ đạo knuckleball/banana. 60 bài drill tăng cảm giác bóng & độ chính xác.',
+    ),
+    Book(
+      id:'b6',
+      title:'Phục hồi chấn thương',
+      author:'Đỗ F',
+      price:135000,
+      image:'https://images.unsplash.com/photo-1518310383802-640c2de311b2',
+      category:'Fitness',
+      description:'RICE, taping cơ bản, protocol phục hồi chấn thương đầu gối/cổ chân/lưng cho VĐV nghiệp dư.',
+    ),
+    Book(
+      id:'b7',
+      title:'Bóng rổ nâng cao',
+      author:'Bùi G',
+      price:145000,
+      image:'https://images.unsplash.com/photo-1504457047772-27f3f414552d',
+      category:'Basketball',
+      description:'Footwork, finishing, shooting off-the-dribble, decision making theo triết lý read and react.',
+    ),
+    Book(
+      id:'b8',
+      title:'Thể lực cho cầu thủ',
+      author:'Hồ H',
+      price:125000,
+      image:'https://images.unsplash.com/photo-1476480862126-209bfaa8edc8',
+      category:'Football',
+      description:'HIIT theo vị trí, periodization, GPS metrics cơ bản. Giáo án 8 tuần tăng tốc độ & sức bền cho tiền vệ.',
+    ),
+  ];
+
+  // Image helper: asset hoặc url, có fallback icon
+  static Widget safeImage(String path, {double? width, double? height, BoxFit fit = BoxFit.cover}) {
+    final isUrl = path.startsWith('http');
+    final provider = isUrl ? NetworkImage(path) : AssetImage(path) as ImageProvider;
+    return Image(
+      image: provider,
+      width: width, height: height, fit: fit,
+      errorBuilder: (_, __, ___) => Container(
+        width: width, height: height,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: const Color(0xFFEFF3F6),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Icon(Icons.menu_book_outlined, size: 28, color: Color(0xFF90A4AE)),
+      ),
+    );
+  }
+
+  // ===== Cart / Wishlist / Orders =====
+  Future<List<CartItem>> loadCart() async {
+    final sp = await SharedPreferences.getInstance();
+    final raw = sp.getString(_cartKey);
+    if (raw == null) return [];
+    final list = (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
+    return list.map((e) => CartItem.fromJson(e)).toList();
+  }
+
+  Future<void> saveCart(List<CartItem> items) async {
+    final sp = await SharedPreferences.getInstance();
+    await sp.setString(_cartKey, jsonEncode(items.map((e) => e.toJson()).toList()));
+  }
+
+  Future<List<String>> loadWishlistIds() async {
+    final sp = await SharedPreferences.getInstance();
+    return sp.getStringList(_wishlistKey) ?? <String>[];
+  }
+
+  Future<void> saveWishlistIds(List<String> ids) async {
+    final sp = await SharedPreferences.getInstance();
+    await sp.setStringList(_wishlistKey, ids);
+  }
+
+  Future<List<Order>> loadOrders() async {
+    final sp = await SharedPreferences.getInstance();
+    final raw = sp.getString(_ordersKey);
+    if (raw == null) return [];
+    final list = (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
+    return list.map((m) => Order(
+      id: m['id'],
+      total: m['total'],
+      createdAt: DateTime.parse(m['createdAt']),
+      items: (m['items'] as List).map((e) => CartItem.fromJson(e)).toList(),
+    )).toList();
+  }
+
+  Future<void> saveOrders(List<Order> orders) async {
+    final sp = await SharedPreferences.getInstance();
+    final raw = orders.map((o) => {
+      'id': o.id,
+      'total': o.total,
+      'createdAt': o.createdAt.toIso8601String(),
+      'items': o.items.map((e) => e.toJson()).toList(),
+    }).toList();
+    await sp.setString(_ordersKey, jsonEncode(raw));
+  }
+
+  // ===== Reviews per book (mock local) =====
+  String _reviewKey(String bookId) => 'reviews_' + bookId;
+
+  Future<List<Review>> loadReviews(String bookId) async {
+    final sp = await SharedPreferences.getInstance();
+    final raw = sp.getString(_reviewKey(bookId));
+    if (raw == null) return [];
+    final list = (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
+    return list.map((e) => Review.fromJson(e)).toList();
+  }
+
+  Future<void> saveReviews(String bookId, List<Review> reviews) async {
+    final sp = await SharedPreferences.getInstance();
+    final raw = reviews.map((e) => e.toJson()).toList();
+    await sp.setString(_reviewKey(bookId), jsonEncode(raw));
+  }
+
+  Future<void> addReview(String bookId, Review review) async {
+    final list = await loadReviews(bookId);
+    list.add(review);
+    await saveReviews(bookId, list);
+  }
+}

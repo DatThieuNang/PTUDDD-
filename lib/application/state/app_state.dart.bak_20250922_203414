@@ -1,0 +1,204 @@
+﻿import 'package:flutter/foundation.dart';
+import '../../domain/entities/entities.dart';
+import '../../data/datasources/memory.dart';
+import '../../data/repositories/impl.dart';
+import '../../domain/usecases/search_books.dart';
+import '../../domain/usecases/add_to_cart.dart';
+import '../../domain/usecases/remove_from_cart.dart';
+import '../../domain/usecases/update_qty_cart.dart';
+import '../../domain/usecases/toggle_wishlist.dart';
+import '../../domain/usecases/place_order.dart';
+import '../../domain/usecases/list_orders.dart';
+import '../../domain/usecases/filter_by_category.dart';
+import '../../domain/usecases/get_book_detail.dart';
+import '../../domain/usecases/clear_cart.dart';
+
+class AppState extends ChangeNotifier {
+  late final MemoryDataSource _ds;
+  late final BookRepositoryImpl _bookRepo;
+  late final CartRepositoryImpl _cartRepo;
+  late final WishlistRepositoryImpl _wishlistRepo;
+  late final OrderRepositoryImpl _orderRepo;
+
+  late final SearchBooks searchBooks;
+  late final AddToCart addToCart;
+  late final RemoveFromCart removeFromCart;
+  late final UpdateQtyCart updateQtyCart;
+  late final ToggleWishlist toggleWishlistUc;
+  late final PlaceOrder placeOrderUc;
+  late final ListOrders listOrdersUc;
+  late final FilterByCategory filterByCategory;
+  late final GetBookDetail getBookDetail;
+  late final ClearCart clearCartUc;
+
+  List<Book> catalog = [];
+  List<Book> catalogView = [];
+  List<CartItem> cart = [];
+  List<String> wishlistIds = [];
+  List<Order> orders = [];
+
+  String currentQuery = '';
+  String? currentCategory;
+
+  // Checkout state (tạm trong app)
+  Address? shippingAddress;
+  String? couponCode; // FIT30 | FREESHIP
+  final int shippingFeeBase = 15000;
+
+  // cache reviews
+  final Map<String, List<Review>> _reviewsCache = {};
+
+  Future<void> init() async {
+    _ds = MemoryDataSource();
+    _bookRepo = BookRepositoryImpl(_ds);
+    _cartRepo = CartRepositoryImpl(_ds);
+    _wishlistRepo = WishlistRepositoryImpl(_ds);
+    _orderRepo = OrderRepositoryImpl(_ds);
+
+    searchBooks = SearchBooks(_bookRepo);
+    addToCart = AddToCart(_cartRepo);
+    removeFromCart = RemoveFromCart(_cartRepo);
+    updateQtyCart = UpdateQtyCart(_cartRepo);
+    toggleWishlistUc = ToggleWishlist(_wishlistRepo);
+    placeOrderUc = PlaceOrder(_orderRepo, _cartRepo);
+    listOrdersUc = ListOrders(_orderRepo);
+    filterByCategory = FilterByCategory(_bookRepo);
+    getBookDetail = GetBookDetail(_bookRepo);
+    clearCartUc = ClearCart(_cartRepo);
+
+    catalog = await _bookRepo.listAll();
+    catalogView = catalog;
+    cart = await _cartRepo.getCart();
+    wishlistIds = await _wishlistRepo.getWishlistIds();
+    orders = await listOrdersUc();
+    notifyListeners();
+  }
+
+  Future<void> doSearch(String q) async {
+    currentQuery = q;
+    final list = await searchBooks(q);
+    if (currentCategory != null && currentCategory!.isNotEmpty) {
+      catalogView = list.where((b) => b.category.toLowerCase() == currentCategory!.toLowerCase()).toList();
+    } else {
+      catalogView = list;
+    }
+    notifyListeners();
+  }
+
+  Future<void> applyCategory(String? cat) async {
+    currentCategory = cat;
+    final base = currentQuery.isEmpty ? await _bookRepo.listAll() : await searchBooks(currentQuery);
+    catalogView = (cat == null || cat.isEmpty)
+        ? base
+        : base.where((b) => b.category.toLowerCase() == cat.toLowerCase()).toList();
+    notifyListeners();
+  }
+
+  Future<void> toggleWishlist(String bookId) async {
+    wishlistIds = await toggleWishlistUc(bookId);
+    notifyListeners();
+  }
+
+  Future<void> addOne(Book book) async {
+    await addToCart(CartItem(book: book, qty: 1));
+    cart = await _cartRepo.getCart();
+    notifyListeners();
+  }
+
+  Future<void> decOne(String bookId) async {
+    final i = cart.indexWhere((e) => e.book.id == bookId);
+    if (i >= 0) {
+      final nextQty = cart[i].qty - 1;
+      if (nextQty <= 0) {
+        await removeFromCart(bookId);
+      } else {
+        await updateQtyCart(bookId, nextQty);
+      }
+      cart = await _cartRepo.getCart();
+      notifyListeners();
+    }
+  }
+
+  Future<void> incOne(String bookId) async {
+    final i = cart.indexWhere((e) => e.book.id == bookId);
+    if (i >= 0) {
+      await updateQtyCart(bookId, cart[i].qty + 1);
+      cart = await _cartRepo.getCart();
+      notifyListeners();
+    }
+  }
+
+  Future<void> removeItem(String bookId) async {
+    await removeFromCart(bookId);
+    cart = await _cartRepo.getCart();
+    notifyListeners();
+  }
+
+  Future<void> clearCart() async {
+    await clearCartUc();
+    cart = [];
+    notifyListeners();
+  }
+
+  int get subtotal => cart.fold(0, (s, e) => s + e.book.price * e.qty);
+
+  int get discount {
+    if (couponCode == null) return 0;
+    if (couponCode!.toUpperCase() == 'FIT30') {
+      return (subtotal * 0.3).round();
+    }
+    return 0;
+  }
+
+  int get shippingFee {
+    if (couponCode?.toUpperCase() == 'FREESHIP') return 0;
+    if (cart.isEmpty) return 0;
+    return shippingFeeBase;
+  }
+
+  int get payable => (subtotal - discount + shippingFee).clamp(0, 1 << 31);
+
+  void setCoupon(String? code) {
+    couponCode = (code ?? '').trim().isEmpty ? null : code!.trim();
+    notifyListeners();
+  }
+
+  void setAddress(Address a) {
+    shippingAddress = a;
+    notifyListeners();
+  }
+
+  // Checkout toàn bộ giỏ  trả về Order vừa tạo
+  
+
+  // Mua ngay 1 cuốn (xoá giỏ cũ -> thêm 1 -> đặt hàng)
+  Future<void> buyNow(Book book) async {
+    await clearCartUc();
+    cart = [];
+    await addToCart(CartItem(book: book, qty: 1));
+    cart = await _cartRepo.getCart();
+    await placeCurrentOrder();
+  }// ===== Reviews =====
+  Future<List<Review>> getReviews(String bookId) async {
+    if (_reviewsCache.containsKey(bookId)) return _reviewsCache[bookId]!;
+    final list = await _ds.loadReviews(bookId);
+    _reviewsCache[bookId] = list;
+    return list;
+  }
+
+  Future<double> getAverageRating(String bookId) async {
+    final list = await getReviews(bookId);
+    if (list.isEmpty) return 0;
+    final sum = list.fold<int>(0, (s, e) => s + e.rating);
+    return sum / list.length;
+  }
+
+  Future<void> addReview(String bookId, int rating, String text) async {
+    final review = Review(rating: rating, text: text, createdAt: DateTime.now());
+    await _ds.addReview(bookId, review);
+    _reviewsCache.remove(bookId);
+    notifyListeners();
+  }
+}
+
+

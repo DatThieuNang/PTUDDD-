@@ -1,0 +1,10 @@
+﻿import 'package:flutter/material.dart';
+
+ThemeData buildAppTheme() {
+  return ThemeData(
+    useMaterial3: true,
+    colorSchemeSeed: Colors.blueGrey,
+    scaffoldBackgroundColor: Colors.white,
+    appBarTheme: const AppBarTheme(centerTitle: true),
+  );
+}

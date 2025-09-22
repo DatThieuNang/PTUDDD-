@@ -1,0 +1,194 @@
+﻿import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../domain/entities/entities.dart';
+
+class MemoryDataSource {
+  static const _cartKey = 'cart_items';
+  static const _wishlistKey = 'wishlist_ids';
+  static const _ordersKey = 'orders';
+
+  // ==== CATALOG: các loại sách thật ====
+  final List<Book> catalog = const [
+    Book(
+      id:'b101',
+      title:'Giải tích cơ bản',
+      author:'Nguyễn Minh',
+      price:120000,
+      image:'https://images.unsplash.com/photo-1518131678677-a9d53b58c8dc',
+      category:'Học tập',
+      description:'Ôn tập giới hạn, đạo hàm, tích phân kèm 300 bài tập chọn lọc. Phù hợp 12/ĐH năm 1.',
+    ),
+    Book(
+      id:'b102',
+      title:'Nấu ăn nhanh 30 phút',
+      author:'Lê An',
+      price:95000,
+      image:'https://images.unsplash.com/photo-1504674900247-0877df9cc836',
+      category:'Nấu ăn',
+      description:'50 công thức tối giản, ít nguyên liệu, phù hợp gia đình bận rộn.',
+    ),
+    Book(
+      id:'b103',
+      title:'Truyện tranh  Hành tinh nhỏ',
+      author:'Midu',
+      price:80000,
+      image:'https://images.unsplash.com/photo-1504198453319-5ce911bafcde',
+      category:'Truyện tranh',
+      description:'Một hành trình tuổi teen dí dỏm, ấm áp về tình bạn và ước mơ.',
+    ),
+    Book(
+      id:'b104',
+      title:'Khởi nghiệp tinh gọn',
+      author:'Eric R.',
+      price:140000,
+      image:'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4',
+      category:'Kinh doanh',
+      description:'Lean Startup: thử nghiệm nhanh, đo lường, học hỏi để tăng trưởng bền vững.',
+    ),
+    Book(
+      id:'b105',
+      title:'Tâm lý học tích cực',
+      author:'Martin S.',
+      price:130000,
+      image:'https://images.unsplash.com/photo-1516979187457-637abb4f9353',
+      category:'Tâm lý',
+      description:'Sống hạnh phúc hơn với các thực hành cảm ơn, dòng chảy và thế mạnh cá nhân.',
+    ),
+    Book(
+      id:'b106',
+      title:'Tiếng Anh giao tiếp cấp tốc',
+      author:'Đặng H.',
+      price:115000,
+      image:'https://images.unsplash.com/photo-1556761175-b413da4baf72',
+      category:'Học tập',
+      description:'Mẫu câu sinh tồn + phát âm cơ bản, audio kèm QR để luyện mỗi ngày.',
+    ),
+    Book(
+      id:'b107',
+      title:'Ẩm thực Địa Trung Hải',
+      author:'Giada',
+      price:160000,
+      image:'https://images.unsplash.com/photo-1504754524776-8f4f37790ca0',
+      category:'Nấu ăn',
+      description:'100 món chuẩn vị với dầu ô liu, rau củ tươi, tốt cho tim mạch.',
+    ),
+    Book(
+      id:'b108',
+      title:'Manga  Hiệp sĩ giấy',
+      author:'Aoi',
+      price:90000,
+      image:'https://images.unsplash.com/photo-1496317899792-9d7dbcd928a1',
+      category:'Truyện tranh',
+      description:'Phiêu lưu kỳ ảo của cậu bé origami bước qua thế giới gấp giấy.',
+    ),
+    Book(
+      id:'b109',
+      title:'Bản đồ chiến lược',
+      author:'Kaplan & Norton',
+      price:170000,
+      image:'https://images.unsplash.com/photo-1551836022-4c4c79ecde51',
+      category:'Kinh doanh',
+      description:'Balanced Scorecard triển khai mục tiêu tới từng nhóm, từng chỉ số.',
+    ),
+    Book(
+      id:'b110',
+      title:'Thôi lo đi mà sống',
+      author:'D. Carnegie',
+      price:125000,
+      image:'https://images.unsplash.com/photo-1485217988980-11786ced9454',
+      category:'Tâm lý',
+      description:'Các phương pháp đối mặt lo âu, tái cấu trúc suy nghĩ, sống an nhiên.',
+    ),
+  ];
+
+  // Image helper: asset hoặc url, có fallback icon
+  static Widget safeImage(String path, {double? width, double? height, BoxFit fit = BoxFit.cover}) {
+    final isUrl = path.startsWith('http');
+    final provider = isUrl ? NetworkImage(path) : AssetImage(path) as ImageProvider;
+    return Image(
+      image: provider,
+      width: width, height: height, fit: fit,
+      errorBuilder: (_, __, ___) => Container(
+        width: width, height: height,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: const Color(0xFFEFF3F6),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Icon(Icons.menu_book_outlined, size: 28, color: Color(0xFF90A4AE)),
+      ),
+    );
+  }
+
+  // ==== Cart / Wishlist / Orders ====
+  Future<List<CartItem>> loadCart() async {
+    final sp = await SharedPreferences.getInstance();
+    final raw = sp.getString(_cartKey);
+    if (raw == null) return [];
+    final list = (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
+    return list.map((e) => CartItem.fromJson(e)).toList();
+  }
+
+  Future<void> saveCart(List<CartItem> items) async {
+    final sp = await SharedPreferences.getInstance();
+    await sp.setString(_cartKey, jsonEncode(items.map((e) => e.toJson()).toList()));
+  }
+
+  Future<List<String>> loadWishlistIds() async {
+    final sp = await SharedPreferences.getInstance();
+    return sp.getStringList(_wishlistKey) ?? <String>[];
+  }
+
+  Future<void> saveWishlistIds(List<String> ids) async {
+    final sp = await SharedPreferences.getInstance();
+    await sp.setStringList(_wishlistKey, ids);
+  }
+
+  Future<List<Order>> loadOrders() async {
+    final sp = await SharedPreferences.getInstance();
+    final raw = sp.getString(_ordersKey);
+    if (raw == null) return [];
+    final list = (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
+    return list.map((m) => Order(
+      id: m['id'],
+      total: m['total'],
+      createdAt: DateTime.parse(m['createdAt']),
+      items: (m['items'] as List).map((e) => CartItem.fromJson(e)).toList(),
+    )).toList();
+  }
+
+  Future<void> saveOrders(List<Order> orders) async {
+    final sp = await SharedPreferences.getInstance();
+    final raw = orders.map((o) => {
+      'id': o.id,
+      'total': o.total,
+      'createdAt': o.createdAt.toIso8601String(),
+      'items': o.items.map((e) => e.toJson()).toList(),
+    }).toList();
+    await sp.setString(_ordersKey, jsonEncode(raw));
+  }
+
+  // ==== Reviews per book =====
+  String _reviewKey(String bookId) => 'reviews_' + bookId;
+
+  Future<List<Review>> loadReviews(String bookId) async {
+    final sp = await SharedPreferences.getInstance();
+    final raw = sp.getString(_reviewKey(bookId));
+    if (raw == null) return [];
+    final list = (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
+    return list.map((e) => Review.fromJson(e)).toList();
+  }
+
+  Future<void> saveReviews(String bookId, List<Review> reviews) async {
+    final sp = await SharedPreferences.getInstance();
+    final raw = reviews.map((e) => e.toJson()).toList();
+    await sp.setString(_reviewKey(bookId), jsonEncode(raw));
+  }
+
+  Future<void> addReview(String bookId, Review review) async {
+    final list = await loadReviews(bookId);
+    list.add(review);
+    await saveReviews(bookId, list);
+  }
+}

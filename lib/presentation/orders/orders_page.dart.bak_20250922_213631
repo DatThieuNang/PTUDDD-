@@ -1,0 +1,54 @@
+﻿import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../application/state/app_state.dart';
+import '../../core/utils/money.dart';
+
+class OrdersPage extends StatelessWidget {
+  const OrdersPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final app = context.watch<AppState>();
+    final orders = app.orders;
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Đơn hàng của tôi')),
+      body: orders.isEmpty
+          ? const Center(child: Text('Chưa có đơn hàng'))
+          : ListView.separated(
+              padding: const EdgeInsets.all(12),
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemCount: orders.length,
+              itemBuilder: (_, i) {
+                final o = orders[i];
+                return Card(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Mã đơn: ', style: const TextStyle(fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 6),
+                        ...o.items.map((e) => Row(
+                          children: [
+                            Expanded(child: Text('  ', maxLines: 1, overflow: TextOverflow.ellipsis)),
+                            Text(formatVnd(e.book.price * e.qty)),
+                          ],
+                        )),
+                        const Divider(),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: Text('Tổng: ' + formatVnd(o.total), style: const TextStyle(fontWeight: FontWeight.w700)),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(o.createdAt.toString(), style: const TextStyle(color: Colors.black54, fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+    );
+  }
+}

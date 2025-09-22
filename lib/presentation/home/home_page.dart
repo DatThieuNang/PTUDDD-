@@ -1,0 +1,41 @@
+﻿import 'package:flutter/material.dart';
+import '../catalog/tab_catalog.dart';
+import '../home/tab_home.dart';
+import '../cart/tab_cart.dart';
+import '../wishlist/tab_wishlist.dart';
+import '../profile/tab_profile.dart';
+
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  int idx = 0;
+  final tabs = const [
+    TabHome(),
+    TabCatalog(),
+    TabCart(),
+    TabWishlist(),
+    TabProfile(),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: tabs[idx],
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: idx,
+        onDestinationSelected: (i) => setState(() => idx = i),
+        destinations: const [
+          NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Trang chủ'),
+          NavigationDestination(icon: Icon(Icons.menu_book_outlined), label: 'Thể loại'),
+          NavigationDestination(icon: Icon(Icons.shopping_cart_outlined), label: 'Giỏ hàng'),
+          NavigationDestination(icon: Icon(Icons.favorite_outline), label: 'Yêu thích'),
+          NavigationDestination(icon: Icon(Icons.person_outline), label: 'Hồ sơ'),
+        ],
+      ),
+    );
+  }
+}

@@ -1,0 +1,59 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../application/state/app_state.dart';
+import '../../domain/entities/entities.dart';
+import '../pages/detail/book_detail.dart';
+
+class BookGrid extends StatelessWidget {
+  final List<Book> books;
+  const BookGrid({super.key, required this.books});
+
+  @override
+  Widget build(BuildContext context) {
+    final app = context.watch<AppState>();
+    return GridView.builder(
+      padding: const EdgeInsets.all(16),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          mainAxisExtent: 260,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12),
+      itemCount: books.length,
+      itemBuilder: (_, i) {
+        final b = books[i];
+        final liked = app.wishlistIds.contains(b.id);
+        return InkWell(
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => BookDetail(book: b),
+          )),
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                children: [
+                  Expanded(child: Image.asset(b.image, fit: BoxFit.contain)),
+                  const SizedBox(height: 8),
+                  Text(b.title, maxLines: 2, overflow: TextOverflow.ellipsis),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      IconButton(
+                        icon: Icon(
+                            liked ? Icons.favorite : Icons.favorite_border),
+                        onPressed: () => app.toggleWishlist(b.id),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.add_shopping_cart),
+                        onPressed: () => app.addOne(b),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}

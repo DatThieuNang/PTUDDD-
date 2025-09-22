@@ -1,0 +1,24 @@
+﻿import 'package:flutter/material.dart';
+import '../widgets/today_suggest.dart';
+import '../widgets/header.dart';
+import '../widgets/footer_info.dart';
+
+class TabHome extends StatelessWidget {
+  const TabHome({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: const [
+          Header(),
+          SizedBox(height: 12),
+          TodaySuggest(),
+          SizedBox(height: 24),
+          FooterInfo(),
+        ],
+      ),
+    );
+  }
+}

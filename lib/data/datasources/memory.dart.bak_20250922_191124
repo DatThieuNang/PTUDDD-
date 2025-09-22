@@ -1,0 +1,88 @@
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../domain/entities/entities.dart';
+
+class MemoryDataSource {
+  static const _cartKey = 'cart_items';
+  static const _wishlistKey = 'wishlist_ids';
+  static const _ordersKey = 'orders';
+
+  // Mock catalog (không DB)
+  final List<Book> catalog = const [
+    Book(
+        id: 'b1',
+        title: 'Bóng đá cơ bản',
+        author: 'N. A',
+        price: 85000,
+        image: 'assets/images/book1.png',
+        category: 'Football'),
+    Book(
+        id: 'b2',
+        title: 'Yoga cho người mới',
+        author: 'Trần B',
+        price: 99000,
+        image: 'assets/images/book2.png',
+        category: 'Fitness'),
+    Book(
+        id: 'b3',
+        title: 'Chiến thuật bóng rổ',
+        author: 'Lê C',
+        price: 120000,
+        image: 'assets/images/book3.png',
+        category: 'Basketball'),
+  ];
+
+  Future<List<CartItem>> loadCart() async {
+    final sp = await SharedPreferences.getInstance();
+    final raw = sp.getString(_cartKey);
+    if (raw == null) return [];
+    final list = (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
+    return list.map((e) => CartItem.fromJson(e)).toList();
+  }
+
+  Future<void> saveCart(List<CartItem> items) async {
+    final sp = await SharedPreferences.getInstance();
+    await sp.setString(
+        _cartKey, jsonEncode(items.map((e) => e.toJson()).toList()));
+  }
+
+  Future<List<String>> loadWishlistIds() async {
+    final sp = await SharedPreferences.getInstance();
+    return sp.getStringList(_wishlistKey) ?? <String>[];
+  }
+
+  Future<void> saveWishlistIds(List<String> ids) async {
+    final sp = await SharedPreferences.getInstance();
+    await sp.setStringList(_wishlistKey, ids);
+  }
+
+  Future<List<Order>> loadOrders() async {
+    final sp = await SharedPreferences.getInstance();
+    final raw = sp.getString(_ordersKey);
+    if (raw == null) return [];
+    final list = (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
+    return list
+        .map((m) => Order(
+              id: m['id'],
+              total: m['total'],
+              createdAt: DateTime.parse(m['createdAt']),
+              items: (m['items'] as List)
+                  .map((e) => CartItem.fromJson(e))
+                  .toList(),
+            ))
+        .toList();
+  }
+
+  Future<void> saveOrders(List<Order> orders) async {
+    final sp = await SharedPreferences.getInstance();
+    final raw = orders
+        .map((o) => {
+              'id': o.id,
+              'total': o.total,
+              'createdAt': o.createdAt.toIso8601String(),
+              'items': o.items.map((e) => e.toJson()).toList(),
+            })
+        .toList();
+    await sp.setString(_ordersKey, jsonEncode(raw));
+  }
+}

@@ -1,0 +1,61 @@
+import 'package:flutter/foundation.dart';
+import '../../domain/entities/entities.dart';
+import '../../data/datasources/memory.dart';
+import '../../data/repositories/impl.dart';
+import '../../domain/usecases/search_books.dart';
+import '../../domain/usecases/add_to_cart.dart';
+
+class AppState extends ChangeNotifier {
+  late final MemoryDataSource _ds;
+  late final BookRepositoryImpl _bookRepo;
+  late final CartRepositoryImpl _cartRepo;
+  late final WishlistRepositoryImpl _wishlistRepo;
+  late final OrderRepositoryImpl _orderRepo;
+
+  late final SearchBooks searchBooks;
+  late final AddToCart addToCart;
+
+  List<Book> catalog = [];
+  List<CartItem> cart = [];
+  List<String> wishlistIds = [];
+
+  Future<void> init() async {
+    _ds = MemoryDataSource();
+    _bookRepo = BookRepositoryImpl(_ds);
+    _cartRepo = CartRepositoryImpl(_ds);
+    _wishlistRepo = WishlistRepositoryImpl(_ds);
+    _orderRepo = OrderRepositoryImpl(_ds);
+
+    searchBooks = SearchBooks(_bookRepo);
+    addToCart = AddToCart(_cartRepo);
+
+    catalog = await _bookRepo.listAll();
+    cart = await _cartRepo.getCart();
+    wishlistIds = await _wishlistRepo.getWishlistIds();
+    notifyListeners();
+  }
+
+  Future<void> toggleWishlist(String bookId) async {
+    if (wishlistIds.contains(bookId)) {
+      wishlistIds.remove(bookId);
+    } else {
+      wishlistIds.add(bookId);
+    }
+    await _wishlistRepo.setWishlistIds(wishlistIds);
+    notifyListeners();
+  }
+
+  Future<void> addOne(Book book) async {
+    await addToCart(CartItem(book: book, qty: 1));
+    cart = await _cartRepo.getCart();
+    notifyListeners();
+  }
+
+  Future<void> removeFromCart(String bookId) async {
+    cart = cart.where((e) => e.book.id != bookId).toList();
+    await _cartRepo.setCart(cart);
+    notifyListeners();
+  }
+
+  int get cartTotal => cart.fold(0, (sum, e) => sum + e.book.price * e.qty);
+}

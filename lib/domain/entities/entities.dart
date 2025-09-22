@@ -1,0 +1,117 @@
+﻿class Book {
+  final String id;
+  final String title;
+  final String author;
+  final int price; // VNĐ
+  final String image; // asset hoặc url
+  final String category;
+  final String description;
+
+  final int salePercent;      // 0..90
+  final double ratingAvg;     // 0..5
+  final int soldCount;        // đã bán
+  final DateTime? publishedAt;
+  final DateTime? flashSaleEnd; // NEW: hết giờ flash sale
+
+  const Book({
+    required this.id,
+    required this.title,
+    required this.author,
+    required this.price,
+    required this.image,
+    required this.category,
+    this.description = '',
+    this.salePercent = 0,
+    this.ratingAvg = 0,
+    this.soldCount = 0,
+    this.publishedAt,
+    this.flashSaleEnd,
+  });
+
+  int get salePrice => salePercent > 0
+      ? (price * (100 - salePercent) / 100).round()
+      : price;
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'title': title,
+    'author': author,
+    'price': price,
+    'image': image,
+    'category': category,
+    'description': description,
+    'salePercent': salePercent,
+    'ratingAvg': ratingAvg,
+    'soldCount': soldCount,
+    'publishedAt': publishedAt?.toIso8601String(),
+    'flashSaleEnd': flashSaleEnd?.toIso8601String(),
+  };
+
+  factory Book.fromJson(Map<String, dynamic> json) => Book(
+    id: json['id'],
+    title: json['title'],
+    author: json['author'],
+    price: json['price'],
+    image: json['image'],
+    category: json['category'],
+    description: json['description'] ?? '',
+    salePercent: json['salePercent'] ?? 0,
+    ratingAvg: (json['ratingAvg'] ?? 0).toDouble(),
+    soldCount: json['soldCount'] ?? 0,
+    publishedAt: json['publishedAt'] != null ? DateTime.parse(json['publishedAt']) : null,
+    flashSaleEnd: json['flashSaleEnd'] != null ? DateTime.parse(json['flashSaleEnd']) : null,
+  );
+}
+
+class CartItem {
+  final Book book;
+  final int qty;
+  const CartItem({required this.book, required this.qty});
+
+  CartItem copyWith({Book? book, int? qty}) =>
+      CartItem(book: book ?? this.book, qty: qty ?? this.qty);
+
+  Map<String, dynamic> toJson() => {
+    'book': book.toJson(),
+    'qty': qty,
+  };
+
+  factory CartItem.fromJson(Map<String, dynamic> json) =>
+      CartItem(book: Book.fromJson(json['book']), qty: json['qty']);
+}
+
+class Address {
+  final String fullName;
+  final String phone;
+  final String line1;
+  final String city;
+  const Address({required this.fullName, required this.phone, required this.line1, required this.city});
+}
+
+class Order {
+  final String id;
+  final List<CartItem> items;
+  final int total;
+  final DateTime createdAt;
+  const Order({required this.id, required this.items, required this.total, required this.createdAt});
+}
+
+class Review {
+  final int rating; // 1..5
+  final String text;
+  final DateTime createdAt;
+
+  const Review({required this.rating, required this.text, required this.createdAt});
+
+  Map<String, dynamic> toJson() => {
+    'rating': rating,
+    'text': text,
+    'createdAt': createdAt.toIso8601String(),
+  };
+
+  factory Review.fromJson(Map<String, dynamic> json) => Review(
+    rating: json['rating'],
+    text: json['text'],
+    createdAt: DateTime.parse(json['createdAt']),
+  );
+}

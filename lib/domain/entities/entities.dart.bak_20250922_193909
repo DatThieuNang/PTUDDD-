@@ -1,0 +1,76 @@
+class Book {
+  final String id;
+  final String title;
+  final String author;
+  final int price; // VNĐ
+  final String image; // assets path
+  final String category;
+
+  const Book({
+    required this.id,
+    required this.title,
+    required this.author,
+    required this.price,
+    required this.image,
+    required this.category,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        'author': author,
+        'price': price,
+        'image': image,
+        'category': category,
+      };
+
+  factory Book.fromJson(Map<String, dynamic> json) => Book(
+        id: json['id'],
+        title: json['title'],
+        author: json['author'],
+        price: json['price'],
+        image: json['image'],
+        category: json['category'],
+      );
+}
+
+class CartItem {
+  final Book book;
+  final int qty;
+  const CartItem({required this.book, required this.qty});
+
+  CartItem copyWith({Book? book, int? qty}) =>
+      CartItem(book: book ?? this.book, qty: qty ?? this.qty);
+
+  Map<String, dynamic> toJson() => {
+        'book': book.toJson(),
+        'qty': qty,
+      };
+
+  factory CartItem.fromJson(Map<String, dynamic> json) =>
+      CartItem(book: Book.fromJson(json['book']), qty: json['qty']);
+}
+
+class Address {
+  final String fullName;
+  final String phone;
+  final String line1;
+  final String city;
+  const Address(
+      {required this.fullName,
+      required this.phone,
+      required this.line1,
+      required this.city});
+}
+
+class Order {
+  final String id;
+  final List<CartItem> items;
+  final int total;
+  final DateTime createdAt;
+  const Order(
+      {required this.id,
+      required this.items,
+      required this.total,
+      required this.createdAt});
+}

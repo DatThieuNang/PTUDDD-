@@ -1,0 +1,63 @@
+﻿import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../application/state/app_state.dart';
+import '../widgets/book_grid.dart';
+
+class TabCatalog extends StatefulWidget {
+  const TabCatalog({super.key});
+  @override
+  State<TabCatalog> createState() => _TabCatalogState();
+}
+
+class _TabCatalogState extends State<TabCatalog> {
+  final TextEditingController _ctl = TextEditingController();
+  final categories = const ['Football','Fitness','Basketball'];
+
+  @override
+  Widget build(BuildContext context) {
+    final app = context.watch<AppState>();
+    return Scaffold(
+      appBar: AppBar(title: const Text('Danh mục sách')),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: TextField(
+              controller: _ctl,
+              decoration: InputDecoration(
+                hintText: 'Tìm sách theo tên/tác giả/thể loại',
+                prefixIcon: const Icon(Icons.search),
+                border: const OutlineInputBorder(),
+              ),
+              onChanged: (v) => app.doSearch(v),
+            ),
+          ),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              children: [
+                FilterChip(
+                  label: const Text('Tất cả'),
+                  selected: (app.currentCategory ?? '').isEmpty,
+                  onSelected: (_) => app.applyCategory(''),
+                ),
+                const SizedBox(width: 8),
+                ...categories.map((c) => Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: FilterChip(
+                    label: Text(c),
+                    selected: app.currentCategory == c,
+                    onSelected: (_) => app.applyCategory(c),
+                  ),
+                )),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(child: BookGrid(books: app.catalogView)),
+        ],
+      ),
+    );
+  }
+}

@@ -1,0 +1,99 @@
+﻿// lib/presentation/home/tab_home.dart
+
+@override
+Widget build(BuildContext context) {
+  final app = context.watch<AppState>();
+
+  return SafeArea(
+    child: SingleChildScrollView(
+      // <-- tất cả cùng cuộn
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(12, 8, 12, 0),
+            child: Header(),
+          ),
+          // ô tìm kiếm
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _ctl,
+                    decoration: InputDecoration(
+                      hintText: 'Tìm kiếm sách',
+                      prefixIcon: const Icon(Icons.search),
+                      filled: true,
+                      fillColor: const Color(0xFFF3F6F9),
+                      contentPadding: const EdgeInsets.symmetric(
+                          vertical: 14, horizontal: 16),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    onSubmitted: (v) => app.doSearch(v),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 18, vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20)),
+                    backgroundColor: Colors.white,
+                    elevation: 1,
+                  ),
+                  onPressed: () => app.doSearch(_ctl.text),
+                  child: const Text('Tìm',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
+                ),
+              ],
+            ),
+          ),
+          // banner lớn
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+            child: PromoBanner(
+              title: 'Giảm đến 30% sách bếp núc',
+              subtitle: 'Ưu đãi trong tuần này',
+              imageUrl:
+                  'https://images.unsplash.com/photo-1512058564366-18510be2db19',
+              onTap: () {},
+            ),
+          ),
+          // flash sale + đồng hồ
+          const FlashSaleStrip(),
+
+          // mini combo slider (nếu bạn đang dùng)
+          SizedBox(
+            height: 110,
+            child: PageView(
+              controller: _pageCtl,
+              children: const [
+                _MiniPromoCard(
+                    text: 'Combo học tập 2 cuốn',
+                    imageUrl:
+                        'https://images.unsplash.com/photo-1521587760476-6c12a4b040da'),
+                _MiniPromoCard(
+                    text: 'Manga mới ra mắt',
+                    imageUrl:
+                        'https://images.unsplash.com/photo-1519681393784-d120267933ba'),
+                _MiniPromoCard(
+                    text: 'Best-seller kinh doanh',
+                    imageUrl:
+                        'https://images.unsplash.com/photo-1454165205744-3b78555e5572'),
+              ],
+            ),
+          ),
+
+          // LƯỚI SÁCH – lồng embed để không cuộn độc lập
+          BookGrid(books: app.catalogView, embed: true),
+        ],
+      ),
+    ),
+  );
+}

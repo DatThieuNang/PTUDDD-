@@ -1,0 +1,16 @@
+﻿import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+ThemeData buildAppTheme() {
+  final base = ThemeData(
+    useMaterial3: true,
+    colorSchemeSeed: const Color(0xFF4A6572),
+    scaffoldBackgroundColor: Colors.white,
+    appBarTheme: const AppBarTheme(centerTitle: true),
+  );
+  final noto = GoogleFonts.notoSansTextTheme(base.textTheme);
+  return base.copyWith(
+    textTheme: noto,
+    fontFamily: GoogleFonts.notoSans().fontFamily,
+  );
+}

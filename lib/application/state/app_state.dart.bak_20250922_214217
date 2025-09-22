@@ -1,0 +1,194 @@
+﻿import "dart:math";
+import "package:flutter/material.dart";
+import "../../data/datasources/memory.dart";
+import "../../domain/entities/entities.dart";
+
+enum SortMode { none, priceAsc, priceDesc }
+class AppState extends ChangeNotifier {
+  final MemoryDataSource ds;
+  AppState(this.ds);
+
+  // Catalog & view (đã có tìm kiếm trước đó, giữ nguyên nếu bạn có)
+  List<Book> get catalog => ds.catalog;
+  String _query = "";
+  SortMode sortMode = SortMode.none;
+
+  // Giỏ hàng
+  final List<CartItem> _cart = [];
+  List<CartItem> get cart => List.unmodifiable(_cart);
+
+  // Yêu thích
+  final Set<String> _wish = {};
+  Set<String> get wishlistIds => _wish;
+
+  // Đơn hàng
+  final List<Order> _orders = [];
+  List<Order> get orders => List.unmodifiable(_orders);
+
+  // Địa chỉ
+  Address? address;
+
+  // ===== Coupon =====
+  String? _couponCode;
+  int _discount = 0; // đơn vị VNĐ đã tính
+  String? get couponCode => _couponCode;
+  int get discount => _discount;
+
+  // ====== Catalog View với sort đơn giản ======
+  List<Book> get catalogView {
+    var list = catalog.where((b) {
+      if (_query.isEmpty) return true;
+      final q = _query.toLowerCase();
+      return b.title.toLowerCase().contains(q) ||
+             b.author.toLowerCase().contains(q) ||
+             b.category.toLowerCase().contains(q);
+    }).toList();
+
+    switch (sortMode) {
+      case SortMode.priceAsc:
+        list.sort((a,b) => a.salePrice.compareTo(b.salePrice)); break;
+      case SortMode.priceDesc:
+        list.sort((a,b) => b.salePrice.compareTo(a.salePrice)); break;
+      case SortMode.none:
+        break;
+    }
+    return list;
+  }
+
+  // ===== Money helpers =====
+  int get cartSubtotal => _cart.fold(0, (s, it) => s + it.book.salePrice * it.qty);
+  int get cartTotal => max(0, cartSubtotal - _discount);
+
+  // ===== Actions =====
+  void doSearch(String q) { _query = q.trim(); notifyListeners(); }
+  void toggleSortPriceAsc() {
+    sortMode = sortMode == SortMode.priceAsc ? SortMode.none : SortMode.priceAsc;
+    notifyListeners();
+  }
+  void toggleSortPriceDesc() {
+    sortMode = sortMode == SortMode.priceDesc ? SortMode.none : SortMode.priceDesc;
+    notifyListeners();
+  }
+
+  void addOne(Book b) {
+    final idx = _cart.indexWhere((e) => e.book.id == b.id);
+    if (idx == -1) {
+      _cart.add(CartItem(book: b, qty: 1));
+    } else {
+      _cart[idx] = _cart[idx].copyWith(qty: _cart[idx].qty + 1);
+    }
+    _persistCart();
+    notifyListeners();
+  }
+
+  void decreaseOne(Book b) {
+    final idx = _cart.indexWhere((e) => e.book.id == b.id);
+    if (idx == -1) return;
+    final q = _cart[idx].qty - 1;
+    if (q <= 0) {
+      _cart.removeAt(idx);
+    } else {
+      _cart[idx] = _cart[idx].copyWith(qty: q);
+    }
+    _persistCart();
+    notifyListeners();
+  }
+
+  void removeItem(Book b) {
+    _cart.removeWhere((e) => e.book.id == b.id);
+    _persistCart();
+    notifyListeners();
+  }
+
+  void clearCart() {
+    _cart.clear();
+    _discount = 0;
+    _couponCode = null;
+    _persistCart();
+    notifyListeners();
+  }
+
+  void toggleWishlist(Book b) {
+    if (_wish.contains(b.id)) {
+      _wish.remove(b.id);
+    } else {
+      _wish.add(b.id);
+    }
+    _persistWishlist();
+    notifyListeners();
+  }
+
+  // ===== Coupon logic =====
+  // FIT30: 30% tối đa 50.000; NEW10: 10% không giới hạn
+  String applyCoupon(String code) {
+    final c = code.trim().toUpperCase();
+    if (c.isEmpty) {
+      _couponCode = null; _discount = 0; notifyListeners();
+      return "Đã xóa mã giảm giá.";
+    }
+    final sub = cartSubtotal;
+    if (sub <= 0) {
+      _couponCode = null; _discount = 0; notifyListeners();
+      return "Giỏ hàng trống.";
+    }
+    if (c == "FIT30") {
+      _couponCode = c;
+      _discount = min((sub * 0.30).round(), 50000);
+      notifyListeners();
+      return "Áp dụng FIT30 thành công.";
+    } else if (c == "NEW10") {
+      _couponCode = c;
+      _discount = (sub * 0.10).round();
+      notifyListeners();
+      return "Áp dụng NEW10 thành công.";
+    } else {
+      return "Mã không hợp lệ.";
+    }
+  }
+
+  // ====== Orders ======
+  Future<void> loadPersisted() async {
+    // cart, wishlist, orders
+    final list = await ds.loadCart();
+    _cart
+      ..clear()
+      ..addAll(list);
+    _wish
+      ..clear()
+      ..addAll(await ds.loadWishlistIds());
+    _orders
+      ..clear()
+      ..addAll(await ds.loadOrders());
+    notifyListeners();
+  }
+
+  Future<void> _persistCart() async => ds.saveCart(_cart);
+  Future<void> _persistWishlist() async => ds.saveWishlistIds(_wish.toList());
+  Future<void> _persistOrders() async => ds.saveOrders(_orders);
+
+  // Đặt hàng hiện tại: tạo Order, trừ mã giảm giá vào total, xóa giỏ
+  Future<Order?> placeCurrentOrder() async {
+    if (_cart.isEmpty) return null;
+    final total = cartTotal;
+    final o = Order(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      items: List<CartItem>.from(_cart),
+      total: total,
+      createdAt: DateTime.now(),
+    );
+    _orders.insert(0, o);
+    await _persistOrders();
+    clearCart(); // cũng reset coupon
+    return o;
+  }
+
+  // Mua lại từ một order cũ
+  Future<void> reOrder(Order o) async {
+    _cart
+      ..clear()
+      ..addAll(o.items.map((e) => CartItem(book: e.book, qty: e.qty)));
+    _discount = 0; _couponCode = null;
+    await _persistCart();
+    notifyListeners();
+  }
+}

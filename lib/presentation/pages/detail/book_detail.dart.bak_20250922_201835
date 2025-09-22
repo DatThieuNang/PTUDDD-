@@ -1,0 +1,195 @@
+﻿import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../application/state/app_state.dart';
+import '../../../domain/entities/entities.dart';
+import '../../../core/utils/money.dart';
+import '../../../data/datasources/memory.dart' show MemoryDataSource;
+
+class BookDetail extends StatefulWidget {
+  final Book book;
+  const BookDetail({super.key, required this.book});
+
+  @override
+  State<BookDetail> createState() => _BookDetailState();
+}
+
+class _BookDetailState extends State<BookDetail> {
+  final TextEditingController _cmtCtl = TextEditingController();
+  int _rating = 5;
+
+  @override
+  Widget build(BuildContext context) {
+    final app = context.watch<AppState>();
+    final liked = app.wishlistIds.contains(widget.book.id);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.book.title, overflow: TextOverflow.ellipsis),
+        actions: [
+          IconButton(
+            icon: Icon(liked ? Icons.favorite : Icons.favorite_border),
+            onPressed: () => app.toggleWishlist(widget.book.id),
+          ),
+        ],
+      ),
+      body: FutureBuilder(
+        future: Future.wait([
+          app.getAverageRating(widget.book.id),
+          app.getReviews(widget.book.id),
+        ]),
+        builder: (context, AsyncSnapshot<List<dynamic>> snap) {
+          final avg = (snap.hasData ? (snap.data![0] as double) : 0.0);
+          final reviews = (snap.hasData ? (snap.data![1] as List<Review>) : const <Review>[]);
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Ảnh + badge giá
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Stack(
+                    children: [
+                      AspectRatio(
+                        aspectRatio: 4/3,
+                        child: MemoryDataSource.safeImage(widget.book.image, fit: BoxFit.cover),
+                      ),
+                      Positioned(
+                        right: 8, top: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.6),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Text(
+                            formatVnd(widget.book.price),
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(widget.book.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                Text(widget.book.author, style: const TextStyle(color: Colors.black54)),
+                const SizedBox(height: 8),
+
+                // Rating trung bình
+                Row(
+                  children: [
+                    ...List.generate(5, (i) => Icon(
+                      i < avg.round() ? Icons.star : Icons.star_border,
+                      color: Colors.amber, size: 20,
+                    )),
+                    const SizedBox(width: 8),
+                    Text(avg.toStringAsFixed(1)),
+                    const SizedBox(width: 6),
+                    Text('( đánh giá)', style: const TextStyle(color: Colors.black54)),
+                  ],
+                ),
+
+                const SizedBox(height: 16),
+                const Text('Bình luận', style: TextStyle(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 8),
+
+                if (reviews.isEmpty)
+                  const Text('Chưa có bình luận. Hãy là người đầu tiên!'),
+
+                // Danh sách bình luận
+                ...reviews.reversed.map((r) => ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: CircleAvatar(child: Text(r.rating.toString())),
+                  title: Text(r.text),
+                  subtitle: Text(r.createdAt.toString()),
+                )),
+
+                const SizedBox(height: 12),
+                // Form đánh giá nhanh
+                Row(
+                  children: [
+                    const Text('Đánh giá: '),
+                    ...List.generate(5, (i) {
+                      final idx = i + 1;
+                      return IconButton(
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: () => setState(() => _rating = idx),
+                        icon: Icon(idx <= _rating ? Icons.star : Icons.star_border, color: Colors.amber),
+                      );
+                    }),
+                  ],
+                ),
+                TextField(
+                  controller: _cmtCtl,
+                  decoration: const InputDecoration(
+                    hintText: 'Viết bình luận...',
+                    border: OutlineInputBorder(),
+                  ),
+                  minLines: 1,
+                  maxLines: 3,
+                ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      final text = _cmtCtl.text.trim();
+                      if (text.isEmpty) return;
+                      await app.addReview(widget.book.id, _rating, text);
+                      _cmtCtl.clear();
+                      if (context.mounted) setState(() {});
+                    },
+                    child: const Text('Gửi'),
+                  ),
+                ),
+                const SizedBox(height: 80), // chừa chỗ cho bottom bar
+              ],
+            ),
+          );
+        },
+      ),
+
+      // 2 nút dưới: Thêm vào giỏ & Mua ngay
+      bottomNavigationBar: SafeArea(
+        minimum: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => app.addOne(widget.book),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: const StadiumBorder(),
+                ),
+                child: const Text('Thêm vào giỏ'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: () async {
+                  await app.buyNow(widget.book);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Đã mua ngay 1 cuốn')),
+                    );
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: const StadiumBorder(),
+                ),
+                child: const Text('Mua ngay'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+

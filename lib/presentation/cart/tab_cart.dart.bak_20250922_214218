@@ -1,0 +1,71 @@
+﻿import 'package:flutter/material.dart';
+import '../orders/orders_page.dart';
+import 'package:provider/provider.dart';
+import '../../application/state/app_state.dart';
+import '../../core/utils/money.dart';
+import '../checkout/checkout_page.dart';
+import '../../data/datasources/memory.dart' show MemoryDataSource;
+
+class TabCart extends StatelessWidget {
+  const TabCart({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final app = context.watch<AppState>();
+    final items = app.cart;
+
+    return Scaffold(
+      appBar: 
+    param($m)
+    $m.Value -replace "actions:\s*\[[^\]]*\]", "actions: [IconButton(icon: const Icon(Icons.history), onPressed: () { Navigator.push(context, MaterialPageRoute(builder: (_) => const OrdersPage())); },)]"
+  ),
+      body: items.isEmpty
+          ? const Center(child: Text('Giỏ hàng trống'))
+          : ListView.separated(
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 100),
+              separatorBuilder: (_, __) => const Divider(),
+              itemCount: items.length,
+              itemBuilder: (_, i) {
+                final it = items[i];
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: SizedBox(
+                        width: 64, height: 64,
+                        child: MemoryDataSource.safeImage(it.book.image, fit: BoxFit.cover),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(it.book.title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 2),
+                          Text('  ', style: const TextStyle(color: Colors.black54)),
+                        ],
+                      ),
+                    ),
+                    IconButton(icon: const Icon(Icons.remove_circle_outline), onPressed: () => app.decOne(it.book.id)),
+                    Text(it.qty.toString()),
+                    IconButton(icon: const Icon(Icons.add_circle_outline), onPressed: () => app.incOne(it.book.id)),
+                    IconButton(icon: const Icon(Icons.delete_outline), onPressed: () => app.removeItem(it.book.id)),
+                  ],
+                );
+              },
+            ),
+      bottomNavigationBar: SafeArea(
+        minimum: const EdgeInsets.all(12),
+        child: ElevatedButton(
+          onPressed: app.cart.isEmpty ? null : () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CheckoutPage())),
+          style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), shape: const StadiumBorder()),
+          child: Text('Thanh toán  ' + formatVnd(app.subtotal)),
+        ),
+      ),
+    );
+  }
+}
+
