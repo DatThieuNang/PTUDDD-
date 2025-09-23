@@ -1,0 +1,105 @@
+﻿import "package:flutter/material.dart";
+import "package:provider/provider.dart";
+import "../../application/state/app_state.dart";
+import "../../core/utils/money.dart";
+
+class OrdersPage extends StatelessWidget {
+  const OrdersPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final app = context.watch<AppState>();
+    final list = app.orders;
+
+    if (list.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(title: const Text("Đơn hàng của tôi")),
+        body: const Center(child: Text("Chưa có đơn hàng.")),
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(title: const Text("Đơn hàng của tôi")),
+      body: ListView.separated(
+        padding: const EdgeInsets.all(12),
+        itemBuilder: (_, i) {
+          final o = list[i];
+          final st = app.statusOf(o.id);
+          final method = app.methodOf(o.id);
+
+          final Color stColor = switch (st) {
+            OrderStatus.pending  => Colors.orange,
+            OrderStatus.paid     => Colors.blue,
+            OrderStatus.shipping => Colors.purple,
+            OrderStatus.done     => Colors.green,
+          };
+
+          return Card(
+            child: ListTile(
+              title: Text("Đơn #${o.id}  ${formatVnd(o.total)}"),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("${o.items.length} sản phẩm  ${o.createdAt}  $method"),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      _badge("Trạng thái", st.name.toUpperCase(), stColor),
+                      const SizedBox(width: 8),
+                      _badge("Thanh toán", method, Colors.black54),
+                    ],
+                  ),
+                ],
+              ),
+              trailing: PopupMenuButton<String>(
+                onSelected: (k) {
+                  final ap = context.read<AppState>();
+                  switch (k) {
+                    case "paid": ap.markPaid(o.id); break;
+                    case "ship": ap.markShipping(o.id); break;
+                    case "done": ap.markDone(o.id); break;
+                    case "adv":  ap.advanceOrder(o.id); break;
+                  }
+                },
+                itemBuilder: (_) {
+                  final items = <PopupMenuEntry<String>>[];
+                  if (st == OrderStatus.pending) {
+                    items.add(const PopupMenuItem(value: "paid", child: Text("Đánh dấu ĐÃ THANH TOÁN")));
+                  }
+                  if (st == OrderStatus.pending || st == OrderStatus.paid) {
+                    items.add(const PopupMenuItem(value: "ship", child: Text("Đánh dấu ĐANG GIAO")));
+                  }
+                  if (st != OrderStatus.done) {
+                    items.add(const PopupMenuItem(value: "done", child: Text("Hoàn tất đơn")));
+                  }
+                  items.add(const PopupMenuDivider());
+                  items.add(const PopupMenuItem(value: "adv", child: Text("Tiến 1 bước")));
+                  return items;
+                },
+              ),
+            ),
+          );
+        },
+        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        itemCount: list.length,
+      ),
+    );
+  }
+
+  Widget _badge(String k, String v, Color c) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: c.withOpacity(0.12),
+        border: Border.all(color: c.withOpacity(0.4)),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        children: [
+          Text("$k: ", style: const TextStyle(fontSize: 12, color: Colors.black54)),
+          Text(v, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: c)),
+        ],
+      ),
+    );
+  }
+}

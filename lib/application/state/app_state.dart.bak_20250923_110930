@@ -1,9 +1,7 @@
 ﻿import "dart:math";
-import "dart:convert";
 import "package:flutter/material.dart";
 import "../../data/datasources/memory.dart";
 import "../../domain/entities/entities.dart";
-import "package:shared_preferences/shared_preferences.dart";
 
 enum SortType { popular, newest, priceAsc, priceDesc, rating }
 
@@ -211,5 +209,4 @@ class AppState extends ChangeNotifier {
     }
   }
 }
-
 

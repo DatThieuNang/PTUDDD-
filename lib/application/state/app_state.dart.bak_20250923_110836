@@ -1,9 +1,7 @@
 ﻿import "dart:math";
-import "dart:convert";
 import "package:flutter/material.dart";
 import "../../data/datasources/memory.dart";
 import "../../domain/entities/entities.dart";
-import "package:shared_preferences/shared_preferences.dart";
 
 enum SortType { popular, newest, priceAsc, priceDesc, rating }
 
@@ -116,32 +114,7 @@ class AppState extends ChangeNotifier {
 
   // meta trạng thái & phương thức (không đụng model Order)
   final Map<String, OrderStatus> _orderStatus = {};
-  final Map<String, String> _orderMethod = {};
-
-  Future<void> _persistOrderMeta() async {
-    final sp = await SharedPreferences.getInstance();
-    final st = _orderStatus.map((k, v) => MapEntry(k, v.index));
-    await sp.setString("order_status_map", jsonEncode(st));
-    await sp.setString("order_method_map", jsonEncode(_orderMethod));
-  }
-
-  Future<void> _loadOrderMeta() async {
-    final sp = await SharedPreferences.getInstance();
-    final sm = sp.getString("order_status_map");
-    if (sm != null && sm.isNotEmpty) {
-      final m = (jsonDecode(sm) as Map).map((k, v) => MapEntry(k as String, OrderStatus.values[(v as num).toInt()]));
-      _orderStatus
-        ..clear()
-        ..addAll(m);
-    }
-    final mm = sp.getString("order_method_map");
-    if (mm != null && mm.isNotEmpty) {
-      final m2 = (jsonDecode(mm) as Map).map((k, v) => MapEntry(k as String, v as String));
-      _orderMethod
-        ..clear()
-        ..addAll(m2);
-    }
-  } // "COD"/"VNPay"/"MoMo"
+  final Map<String, String> _orderMethod = {}; // "COD"/"VNPay"/"MoMo"
   OrderStatus statusOf(String orderId) => _orderStatus[orderId] ?? OrderStatus.paid;
   String methodOf(String orderId) => _orderMethod[orderId] ?? "COD";
 
@@ -171,7 +144,6 @@ class AppState extends ChangeNotifier {
     _orderStatus[o.id] = method == "COD" ? OrderStatus.pending : OrderStatus.paid;
 
     await _persistOrders();
-    await _persistOrderMeta();
     clearCart(); // reset giỏ + coupon
     return o;
   }
@@ -184,32 +156,4 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> buyNow(Book b) async { clearCart(); addOne(b); }
-
-  void setOrderStatus(String orderId, OrderStatus st) {
-    _orderStatus[orderId] = st;
-    _persistOrderMeta();
-    notifyListeners();
-  }
-
-  void markPaid(String orderId) => setOrderStatus(orderId, OrderStatus.paid);
-  void markShipping(String orderId) => setOrderStatus(orderId, OrderStatus.shipping);
-  void markDone(String orderId) => setOrderStatus(orderId, OrderStatus.done);
-
-  /// Tiến 1 bước: pending|paid -> shipping -> done
-  void advanceOrder(String orderId) {
-    final cur = statusOf(orderId);
-    switch (cur) {
-      case OrderStatus.pending:
-      case OrderStatus.paid:
-        setOrderStatus(orderId, OrderStatus.shipping);
-        break;
-      case OrderStatus.shipping:
-        setOrderStatus(orderId, OrderStatus.done);
-        break;
-      case OrderStatus.done:
-        break;
-    }
-  }
 }
-
-

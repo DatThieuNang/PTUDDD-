@@ -1,8 +1,8 @@
 ﻿import "dart:async";
 import "package:flutter/material.dart";
 import "package:provider/provider.dart";
-import "../../application/state/app_state.dart";
 import "../../domain/entities/entities.dart";
+import "../../application/state/app_state.dart";
 import "../../core/utils/money.dart";
 import "../orders/orders_page.dart";
 import "payment_result_page.dart";
@@ -31,8 +31,12 @@ class _CheckoutPageState extends State<CheckoutPage> {
     super.dispose();
   }
 
-  Future<void> _simulateGateway({required Future<void> Function() onSuccess}) async {
+  Future<void> _simulateGateway({
+    required String gatewayName,
+    required Future<void> Function() onSuccess,
+  }) async {
     setState(() { _processing = true; });
+    // mô phỏng chờ chuyển trang/nhập OTP, v.v.
     await Future.delayed(const Duration(seconds: 2));
     setState(() { _processing = false; });
     await onSuccess();
@@ -72,7 +76,12 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    Expanded(child: TextField(controller: _coupon, decoration: const InputDecoration(hintText: "Nhập mã (FIT30, NEW10)..."),)),
+                    Expanded(
+                      child: TextField(
+                        controller: _coupon,
+                        decoration: const InputDecoration(hintText: "Nhập mã (FIT30, NEW10)..."),
+                      ),
+                    ),
                     const SizedBox(width: 8),
                     ElevatedButton(
                       onPressed: () {
@@ -85,53 +94,35 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 ),
                 const SizedBox(height: 16),
 
-                const Text("Vận chuyển", style: TextStyle(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 8),
-                Card(
-                  child: Column(
-                    children: app.shippingOptions.map((o) {
-                      final code = o["code"] as String;
-                      final label = o["label"] as String;
-                      final fee = o["fee"] as int;
-                      final selected = app.shippingLabel == label;
-                      return Column(
-                        children: [
-                          RadioListTile<String>(
-                            value: code,
-                            groupValue: selected ? code : app.shippingOptions.firstWhere((e)=>e["label"]==app.shippingLabel)["code"] as String,
-                            onChanged: (v) => context.read<AppState>().setShipping(v!),
-                            title: Text("$label"),
-                            subtitle: Text("Phí: ${formatVnd(fee)}"),
-                            secondary: const Icon(Icons.local_shipping_outlined),
-                          ),
-                          const Divider(height: 0),
-                        ],
-                      );
-                    }).toList()..removeLast(),
-                  ),
-                ),
-
-                const SizedBox(height: 16),
                 const Text("Phương thức thanh toán", style: TextStyle(fontWeight: FontWeight.w700)),
                 const SizedBox(height: 8),
                 Card(
                   child: Column(
                     children: [
                       RadioListTile<PaymentMethod>(
-                        value: PaymentMethod.vnpay, groupValue: _method, onChanged: (v)=>setState(()=>_method=v!),
-                        title: const Text("VNPay"), subtitle: const Text("Thẻ nội địa/QR  mô phỏng"),
+                        value: PaymentMethod.vnpay,
+                        groupValue: _method,
+                        onChanged: (v) => setState(() => _method = v!),
+                        title: const Text("VNPay"),
+                        subtitle: const Text("Thẻ nội địa/QR  mô phỏng cổng thanh toán"),
                         secondary: const Icon(Icons.qr_code_2),
                       ),
                       const Divider(height: 0),
                       RadioListTile<PaymentMethod>(
-                        value: PaymentMethod.momo, groupValue: _method, onChanged: (v)=>setState(()=>_method=v!),
-                        title: const Text("MoMo"), subtitle: const Text("Ví điện tử  mô phỏng"),
+                        value: PaymentMethod.momo,
+                        groupValue: _method,
+                        onChanged: (v) => setState(() => _method = v!),
+                        title: const Text("MoMo"),
+                        subtitle: const Text("Ví điện tử  mô phỏng cổng thanh toán"),
                         secondary: const Icon(Icons.account_balance_wallet_outlined),
                       ),
                       const Divider(height: 0),
                       RadioListTile<PaymentMethod>(
-                        value: PaymentMethod.cod, groupValue: _method, onChanged: (v)=>setState(()=>_method=v!),
-                        title: const Text("COD (Thanh toán khi nhận hàng)"), subtitle: const Text("Giao hàng rồi trả tiền"),
+                        value: PaymentMethod.cod,
+                        groupValue: _method,
+                        onChanged: (v) => setState(() => _method = v!),
+                        title: const Text("COD (Thanh toán khi nhận hàng)"),
+                        subtitle: const Text("Giao hàng rồi trả tiền"),
                         secondary: const Icon(Icons.delivery_dining_outlined),
                       ),
                     ],
@@ -143,60 +134,100 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 const SizedBox(height: 8),
                 _line("Tạm tính", formatVnd(app.cartSubtotal)),
                 _line("Giảm", "- ${formatVnd(app.discount)}"),
-                _line("Phí vận chuyển", formatVnd(app.shippingFee)),
                 const Divider(height: 20),
-                _line("Tổng thanh toán", formatVnd(app.grandTotal), bold: true),
+                _line("Tổng thanh toán", formatVnd(app.cartTotal), bold: true),
                 const SizedBox(height: 16),
 
                 Row(
                   children: [
-                    Expanded(child: OutlinedButton(onPressed: ()=>Navigator.pop(context), child: const Text("Quay lại giỏ"))),
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text("Quay lại giỏ"),
+                      ),
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: app.cartSubtotal<=0 || _processing ? null : () async {
-                          context.read<AppState>().address = Address(fullName:_name.text, phone:_phone.text, line1:_addr.text, city:_city.text);
-
-                          final method = _method==PaymentMethod.cod ? "COD" : (_method==PaymentMethod.vnpay ? "VNPay" : "MoMo");
+                        onPressed: app.cartSubtotal <= 0 || _processing ? null : () async {
+                          // lưu địa chỉ
+                          context.read<AppState>().address = Address(
+                            fullName: _name.text, phone: _phone.text, line1: _addr.text, city: _city.text);
 
                           if (_method == PaymentMethod.cod) {
-                            final order = await context.read<AppState>().placeCurrentOrder(method: method);
+                            // Đặt hàng trực tiếp
+                            final order = await context.read<AppState>().placeCurrentOrder();
                             if (!mounted) return;
-                            if (order!=null) {
-                              Navigator.pushReplacement(context, MaterialPageRoute(builder: (_)=> PaymentResultPage(success:true, method:method, orderId:order.id, amount:order.total)));
+                            if (order != null) {
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => PaymentResultPage(
+                                    success: true,
+                                    method: "COD",
+                                    orderId: order.id,
+                                    amount: order.total,
+                                  ),
+                                ),
+                              );
                             }
                             return;
                           }
 
-                          await _simulateGateway(onSuccess: () async {
-                            final order = await context.read<AppState>().placeCurrentOrder(method: method);
-                            if (!mounted) return;
-                            if (order!=null) {
-                              Navigator.pushReplacement(context, MaterialPageRoute(builder: (_)=> PaymentResultPage(success:true, method:method, orderId:order.id, amount:order.total)));
-                            }
-                          });
+                          // VNPay/MoMo: mô phỏng gateway
+                          final gw = _method == PaymentMethod.vnpay ? "VNPay" : "MoMo";
+                          await _simulateGateway(
+                            gatewayName: gw,
+                            onSuccess: () async {
+                              final order = await context.read<AppState>().placeCurrentOrder();
+                              if (!mounted) return;
+                              if (order != null) {
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => PaymentResultPage(
+                                      success: true,
+                                      method: gw,
+                                      orderId: order.id,
+                                      amount: order.total,
+                                    ),
+                                  ),
+                                );
+                              }
+                            },
+                          );
                         },
                         child: _processing
-                          ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                          : Text("Thanh toán  ${formatVnd(app.grandTotal)}"),
+                            ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                            : Text("Thanh toán  ${formatVnd(app.cartTotal)}"),
                       ),
                     ),
                   ],
                 )
               ],
             ),
-            if (_processing) Positioned.fill(child: Container(color: Colors.black.withOpacity(0.05))),
+            if (_processing)
+              Positioned.fill(
+                child: Container(
+                  color: Colors.black.withOpacity(0.05),
+                ),
+              ),
           ],
         ),
       ),
     );
   }
 
-  Widget _line(String label, String value, {bool bold=false}) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 6),
-    child: Row(children: [
-      Expanded(child: Text(label)),
-      Text(value, style: TextStyle(fontWeight: bold? FontWeight.w800 : FontWeight.w500)),
-    ]),
-  );
+  Widget _line(String label, String value, {bool bold = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Expanded(child: Text(label)),
+          Text(value, style: TextStyle(fontWeight: bold ? FontWeight.w800 : FontWeight.w500)),
+        ],
+      ),
+    );
+  }
 }
+
