@@ -2,6 +2,7 @@
 import "package:provider/provider.dart";
 import "../../application/state/app_state.dart";
 import "../../core/utils/money.dart";
+import "../checkout/checkout_page.dart";
 import "../orders/orders_page.dart";
 
 class TabCart extends StatelessWidget {
@@ -58,3 +59,4 @@ class TabCart extends StatelessWidget {
     );
   }
 }
+

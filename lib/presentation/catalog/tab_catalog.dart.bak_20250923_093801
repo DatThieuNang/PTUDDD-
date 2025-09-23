@@ -20,13 +20,9 @@ class _TabCatalogState extends State<TabCatalog> {
     final app = context.watch<AppState>();
     final books = app.catalogView;
 
-    // Lấy danh mục động từ dữ liệu
-    final cats = <String>{"Tất cả", ...app.catalog.map((b) => b.category)}.toList();
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // ô tìm kiếm
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
           child: TextField(
@@ -45,7 +41,6 @@ class _TabCatalogState extends State<TabCatalog> {
             onSubmitted: (v) => context.read<AppState>().doSearch(v),
           ),
         ),
-
         // hàng filter nhanh
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
@@ -74,65 +69,9 @@ class _TabCatalogState extends State<TabCatalog> {
             ],
           ),
         ),
-
-        // danh mục chips ngang
-        SizedBox(
-          height: 44,
-          child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            scrollDirection: Axis.horizontal,
-            itemBuilder: (_, i) {
-              final c = cats[i];
-              final selected = (app.currentCategory ?? "") == (c == "Tất cả" ? "" : c);
-              return ChoiceChip(
-                label: Text(c),
-                selected: selected,
-                onSelected: (_) => context.read<AppState>().applyCategory(c == "Tất cả" ? "" : c),
-              );
-            },
-            separatorBuilder: (_, __) => const SizedBox(width: 8),
-            itemCount: cats.length,
-          ),
-        ),
-
-        // bộ sắp xếp
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-          child: Wrap(
-            spacing: 8,
-            runSpacing: -6,
-            children: const [
-              _SortChip(label: 'Phổ biến', type: SortType.popular, icon: Icons.trending_up),
-              _SortChip(label: 'Mới nhất', type: SortType.newest, icon: Icons.new_releases_outlined),
-              _SortChip(label: 'Giá ', type: SortType.priceAsc, icon: Icons.keyboard_arrow_up),
-              _SortChip(label: 'Giá ', type: SortType.priceDesc, icon: Icons.keyboard_arrow_down),
-              _SortChip(label: 'Đánh giá', type: SortType.rating, icon: Icons.star_rate_rounded),
-            ],
-          ),
-        ),
-
         const SizedBox(height: 4),
-        Expanded(child: BookGrid(books: books)), // Catalog là tab riêng  để Expanded cho cuộn mượt
+        Expanded(child: BookGrid(books: books)), // Catalog vẫn là tab cuộn riêng
       ],
-    );
-  }
-}
-
-class _SortChip extends StatelessWidget {
-  final String label;
-  final SortType type;
-  final IconData icon;
-  const _SortChip({required this.label, required this.type, required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    final app = context.watch<AppState>();
-    final selected = app.sortType == type;
-    return ChoiceChip(
-      avatar: Icon(icon, size: 16),
-      label: Text(label),
-      selected: selected,
-      onSelected: (_) => context.read<AppState>().setSort(type),
     );
   }
 }

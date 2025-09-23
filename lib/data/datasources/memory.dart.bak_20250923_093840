@@ -1,6 +1,5 @@
 ﻿import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../domain/entities/entities.dart';
 
@@ -117,21 +116,23 @@ class MemoryDataSource {
     ),
   ];
 
-  static Widget safeImage(String url, {BoxFit fit = BoxFit.cover}) {
-  if (url.isEmpty) {
-    return Container(color: const Color(0xFFECEFF1));
+  static Widget safeImage(String path, {double? width, double? height, BoxFit fit = BoxFit.cover}) {
+    final isUrl = path.startsWith('http');
+    final provider = isUrl ? NetworkImage(path) : AssetImage(path) as ImageProvider;
+    return Image(
+      image: provider,
+      width: width, height: height, fit: fit,
+      errorBuilder: (_, __, ___) => Container(
+        width: width, height: height,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: const Color(0xFFEFF3F6),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Icon(Icons.menu_book_outlined, size: 28, color: Color(0xFF90A4AE)),
+      ),
+    );
   }
-  return CachedNetworkImage(
-    imageUrl: url,
-    fit: fit,
-    placeholder: (_, __) => Container(
-      color: const Color(0xFFF5F7F9),
-      alignment: Alignment.center,
-      child: const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2)),
-    ),
-    errorWidget: (_, __, ___) => Container(color: const Color(0xFFECEFF1), child: const Icon(Icons.image_not_supported)),
-  );
-}
 
   Future<List<CartItem>> loadCart() async {
     final sp = await SharedPreferences.getInstance();
@@ -202,4 +203,3 @@ class MemoryDataSource {
     await saveReviews(bookId, list);
   }
 }
-

@@ -4,7 +4,6 @@ import "application/state/app_state.dart";
 import "data/datasources/memory.dart";
 import "app/theme/theme.dart";
 import "presentation/home/home_page.dart";
-import "presentation/checkout/checkout_page.dart";
 
 void main() {
   final ds = MemoryDataSource();
@@ -21,18 +20,11 @@ class SportsBooksApp extends StatelessWidget {
   const SportsBooksApp({super.key});
   @override
   Widget build(BuildContext context) {
-    final app = context.watch<AppState>();
     return MaterialApp(
       title: "Sports Books",
       theme: buildAppTheme(),
-      darkTheme: buildDarkTheme(),
-      themeMode: app.themeMode,
       home: const HomePage(),
       debugShowCheckedModeBanner: false,
-      routes: {
-        "/checkout": (_) => const CheckoutPage(),
-      },
     );
   }
 }
-

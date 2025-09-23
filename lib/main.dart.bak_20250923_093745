@@ -21,12 +21,9 @@ class SportsBooksApp extends StatelessWidget {
   const SportsBooksApp({super.key});
   @override
   Widget build(BuildContext context) {
-    final app = context.watch<AppState>();
     return MaterialApp(
       title: "Sports Books",
       theme: buildAppTheme(),
-      darkTheme: buildDarkTheme(),
-      themeMode: app.themeMode,
       home: const HomePage(),
       debugShowCheckedModeBanner: false,
       routes: {
@@ -35,4 +32,3 @@ class SportsBooksApp extends StatelessWidget {
     );
   }
 }
-

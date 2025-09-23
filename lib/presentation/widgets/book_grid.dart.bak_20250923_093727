@@ -8,7 +8,7 @@ import '../pages/detail/book_detail.dart';
 
 class BookGrid extends StatelessWidget {
   final List<Book> books;
-  final bool embed; // true => lưới không tự cuộn (nhúng trong SingleChildScrollView)
+  final bool embed; // nếu true -> lưới không cuộn, dùng trong SingleChildScrollView
 
   const BookGrid({super.key, required this.books, this.embed = false});
 
@@ -24,8 +24,7 @@ class BookGrid extends StatelessWidget {
         crossAxisCount: cross,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
-        // Tăng chiều cao thẻ để tránh overflow ở màn nhỏ
-        childAspectRatio: 0.62,
+        childAspectRatio: 0.62, // hơi cao để tránh overflow nút
       ),
       itemCount: books.length,
       shrinkWrap: embed,
@@ -41,9 +40,7 @@ class BookGrid extends StatelessWidget {
             clipBehavior: Clip.antiAlias,
             child: Column(
               children: [
-                AspectRatio(
-                  // ảnh thấp hơn chút để nhường chỗ cho phần text bên dưới
-                  aspectRatio: 5 / 4,
+                AspectRatio(aspectRatio: 5/4,
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
@@ -90,17 +87,13 @@ class BookGrid extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Tiêu đề: 1 dòng, ellipsis
-                        Text(
-                          b.title,
+                        Text(b.title, maxLines: 1, overflow: TextOverflow.ellipsis
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(fontWeight: FontWeight.w700),
                         ),
                         const SizedBox(height: 2),
-                        // Tác giả: 1 dòng, ellipsis
-                        Text(
-                          b.author,
+                        Text(b.author, maxLines: 1, overflow: TextOverflow.ellipsis
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(color: Colors.black54, fontSize: 12),
@@ -132,8 +125,7 @@ class BookGrid extends StatelessWidget {
                           child: ElevatedButton(
                             onPressed: () => app.addOne(b),
                             style: ElevatedButton.styleFrom(
-                              // giảm padding để chắc chắn không overflow ở màn rất nhỏ
-                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              padding: const EdgeInsets.symmetric(vertical: 4), // giảm 2px để chắc chắn không overflow
                               shape: const StadiumBorder(),
                               elevation: 0.5,
                               backgroundColor: const Color(0xFFF2F2F7),
@@ -155,3 +147,7 @@ class BookGrid extends StatelessWidget {
     );
   }
 }
+
+
+
+
