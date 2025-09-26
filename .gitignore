@@ -9,3 +9,4 @@ build/
 # Keystore (tuyệt đối không push)
 **/*.keystore
 **/*.jks
+android/app/google-services.json

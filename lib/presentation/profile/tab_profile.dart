@@ -40,9 +40,11 @@ class TabProfile extends StatelessWidget {
           ),
           const Divider(height: 32),
 
+          // Đơn hàng
           ListTile(
             leading: const Icon(Icons.receipt_long_outlined),
             title: const Text('Đơn hàng của tôi'),
+            trailing: const Icon(Icons.chevron_right),
             onTap: () {
               Navigator.push(
                 context,
@@ -50,10 +52,13 @@ class TabProfile extends StatelessWidget {
               );
             },
           ),
+
+          // Cài đặt -> mở trang Settings
           ListTile(
             leading: const Icon(Icons.settings_outlined),
-            title: const Text('Cài đặt (đang cập nhật)'),
-            onTap: () {},
+            title: const Text('Cài đặt'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.pushNamed(context, '/settings'),
           ),
 
           const SizedBox(height: 24),
@@ -91,7 +96,7 @@ class TabProfile extends StatelessWidget {
             ),
           ],
 
-          const SizedBox(height: 32), // chừa khoảng tránh đụng bottom bar
+          const SizedBox(height: 32),
         ],
       ),
     );
