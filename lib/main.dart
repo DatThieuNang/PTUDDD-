@@ -12,10 +12,8 @@ import 'presentation/checkout/checkout_page.dart';
 import 'presentation/auth/auth_gate.dart';
 import 'presentation/auth/auth_state.dart';
 
-// Settings
+// Settings & Notifications
 import 'presentation/settings/settings_page.dart';
-
-// Notifications
 import 'presentation/notifications/notifications_page.dart';
 
 Future<void> main() async {
@@ -53,8 +51,9 @@ class SportsBooksApp extends StatelessWidget {
       routes: {
         '/checkout': (_) => const CheckoutPage(),
         '/settings': (_) => const SettingsPage(),
-        '/notifications': (_) => const NotificationsPage(), // 👈 thêm
+        '/notifications': (_) => const NotificationsPage(),
       },
+      // Đăng nhập -> HomePage, chưa -> LoginPage (bên trong AuthGate)
       home: AuthGate(signedIn: const HomePage()),
     );
   }
