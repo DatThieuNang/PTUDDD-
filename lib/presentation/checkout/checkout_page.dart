@@ -1,41 +1,109 @@
-﻿import "dart:async";
-import "package:flutter/material.dart";
-import "package:provider/provider.dart";
-import "../../application/state/app_state.dart";
-import "../../domain/entities/entities.dart";
-import "../../core/utils/money.dart";
-import "../orders/orders_page.dart";
-import "payment_result_page.dart";
+﻿import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-enum PaymentMethod { vnpay, momo, cod }
+import '../../application/state/app_state.dart';
+import '../../domain/entities/entities.dart';
+import '../../core/utils/money.dart';
+import '../orders/orders_page.dart';
 
 class CheckoutPage extends StatefulWidget {
   const CheckoutPage({super.key});
+
   @override
   State<CheckoutPage> createState() => _CheckoutPageState();
 }
 
 class _CheckoutPageState extends State<CheckoutPage> {
-  final _name = TextEditingController();
-  final _phone = TextEditingController();
-  final _addr = TextEditingController();
-  final _city = TextEditingController();
-  final _coupon = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
 
-  PaymentMethod _method = PaymentMethod.cod;
-  bool _processing = false;
+  // Address
+  final _nameCtl = TextEditingController();
+  final _phoneCtl = TextEditingController();
+  final _addrCtl = TextEditingController();
+  final _cityCtl = TextEditingController();
+
+  // Voucher
+  final _couponCtl = TextEditingController();
+
+  // Payment
+  String _method = 'COD'; // COD | VNPay | MoMo
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final app = context.read<AppState>();
+      final addr = app.address;
+      if (addr != null) {
+        _nameCtl.text = addr.fullName;
+        _phoneCtl.text = addr.phone;
+        _addrCtl.text = addr.line1;
+        _cityCtl.text = addr.city;
+      }
+      setState(() {});
+    });
+  }
 
   @override
   void dispose() {
-    _name.dispose(); _phone.dispose(); _addr.dispose(); _city.dispose(); _coupon.dispose();
+    _nameCtl.dispose();
+    _phoneCtl.dispose();
+    _addrCtl.dispose();
+    _cityCtl.dispose();
+    _couponCtl.dispose();
     super.dispose();
   }
 
-  Future<void> _simulateGateway({required Future<void> Function() onSuccess}) async {
-    setState(() { _processing = true; });
-    await Future.delayed(const Duration(seconds: 2));
-    setState(() { _processing = false; });
-    await onSuccess();
+  Future<void> _placeOrder() async {
+    final app = context.read<AppState>();
+
+    if (app.cart.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Giỏ hàng trống')),
+      );
+      return;
+    }
+
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    app.address = Address(
+      fullName: _nameCtl.text.trim(),
+      phone: _phoneCtl.text.trim(),
+      line1: _addrCtl.text.trim(),
+      city: _cityCtl.text.trim(),
+    );
+
+    final order = await app.placeCurrentOrder(method: _method);
+    if (!mounted) return;
+
+    if (order == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Không thể tạo đơn.')),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Thanh toán thành công!')),
+    );
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const OrdersPage()),
+    );
+  }
+
+  void _applyCoupon() {
+    final app = context.read<AppState>();
+    final msg = app.applyCoupon(_couponCtl.text);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    setState(() {}); // refresh tổng tiền/discount
+  }
+
+  void _clearCoupon() {
+    final app = context.read<AppState>();
+    _couponCtl.clear();
+    final msg = app.applyCoupon(''); // xóa mã
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    setState(() {});
   }
 
   @override
@@ -43,160 +111,208 @@ class _CheckoutPageState extends State<CheckoutPage> {
     final app = context.watch<AppState>();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Thanh toán"),
-        actions: [
-          IconButton(
-            tooltip: "Đơn hàng của tôi",
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OrdersPage())),
-            icon: const Icon(Icons.history),
-          )
-        ],
-      ),
-      body: AbsorbPointer(
-        absorbing: _processing,
-        child: Stack(
+      appBar: AppBar(title: const Text('Thanh toán')),
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
           children: [
-            ListView(
-              padding: const EdgeInsets.all(16),
+            // Địa chỉ giao hàng
+            const Text('Địa chỉ giao hàng',
+                style: TextStyle(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _nameCtl,
+              decoration: const InputDecoration(
+                labelText: 'Họ và tên',
+                border: OutlineInputBorder(),
+              ),
+              validator: (v) =>
+                  (v == null || v.trim().isEmpty) ? 'Nhập họ tên' : null,
+            ),
+            const SizedBox(height: 10),
+            TextFormField(
+              controller: _phoneCtl,
+              decoration: const InputDecoration(
+                labelText: 'Số điện thoại',
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.phone,
+              validator: (v) =>
+                  (v == null || v.trim().length < 8) ? 'SĐT chưa hợp lệ' : null,
+            ),
+            const SizedBox(height: 10),
+            TextFormField(
+              controller: _addrCtl,
+              decoration: const InputDecoration(
+                labelText: 'Địa chỉ (số nhà, đường)',
+                border: OutlineInputBorder(),
+              ),
+              validator: (v) =>
+                  (v == null || v.trim().isEmpty) ? 'Nhập địa chỉ' : null,
+            ),
+            const SizedBox(height: 10),
+            TextFormField(
+              controller: _cityCtl,
+              decoration: const InputDecoration(
+                labelText: 'Tỉnh/Thành phố',
+                border: OutlineInputBorder(),
+              ),
+              validator: (v) =>
+                  (v == null || v.trim().isEmpty) ? 'Nhập tỉnh/thành' : null,
+            ),
+            const SizedBox(height: 16),
+
+            // Voucher / Mã giảm giá
+            const Text('Mã giảm giá',
+                style: TextStyle(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            Row(
               children: [
-                const Text("Địa chỉ nhận hàng", style: TextStyle(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 8),
-                TextField(controller: _name, decoration: const InputDecoration(labelText: "Họ tên")),
-                TextField(controller: _phone, decoration: const InputDecoration(labelText: "Số điện thoại"), keyboardType: TextInputType.phone),
-                TextField(controller: _addr, decoration: const InputDecoration(labelText: "Địa chỉ")),
-                TextField(controller: _city, decoration: const InputDecoration(labelText: "Tỉnh/Thành")),
-                const SizedBox(height: 16),
-
-                const Text("Mã giảm giá", style: TextStyle(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(child: TextField(controller: _coupon, decoration: const InputDecoration(hintText: "Nhập mã (FIT30, NEW10)..."),)),
-                    const SizedBox(width: 8),
-                    ElevatedButton(
-                      onPressed: () {
-                        final msg = context.read<AppState>().applyCoupon(_coupon.text);
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-                      },
-                      child: const Text("Áp dụng"),
-                    )
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                const Text("Vận chuyển", style: TextStyle(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 8),
-                Card(
-                  child: Column(
-                    children: app.shippingOptions.map((o) {
-                      final code = o["code"] as String;
-                      final label = o["label"] as String;
-                      final fee = o["fee"] as int;
-                      final selected = app.shippingLabel == label;
-                      return Column(
-                        children: [
-                          RadioListTile<String>(
-                            value: code,
-                            groupValue: selected ? code : app.shippingOptions.firstWhere((e)=>e["label"]==app.shippingLabel)["code"] as String,
-                            onChanged: (v) => context.read<AppState>().setShipping(v!),
-                            title: Text("$label"),
-                            subtitle: Text("Phí: ${formatVnd(fee)}"),
-                            secondary: const Icon(Icons.local_shipping_outlined),
-                          ),
-                          const Divider(height: 0),
-                        ],
-                      );
-                    }).toList()..removeLast(),
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-                const Text("Phương thức thanh toán", style: TextStyle(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 8),
-                Card(
-                  child: Column(
-                    children: [
-                      RadioListTile<PaymentMethod>(
-                        value: PaymentMethod.vnpay, groupValue: _method, onChanged: (v)=>setState(()=>_method=v!),
-                        title: const Text("VNPay"), subtitle: const Text("Thẻ nội địa/QR  mô phỏng"),
-                        secondary: const Icon(Icons.qr_code_2),
-                      ),
-                      const Divider(height: 0),
-                      RadioListTile<PaymentMethod>(
-                        value: PaymentMethod.momo, groupValue: _method, onChanged: (v)=>setState(()=>_method=v!),
-                        title: const Text("MoMo"), subtitle: const Text("Ví điện tử  mô phỏng"),
-                        secondary: const Icon(Icons.account_balance_wallet_outlined),
-                      ),
-                      const Divider(height: 0),
-                      RadioListTile<PaymentMethod>(
-                        value: PaymentMethod.cod, groupValue: _method, onChanged: (v)=>setState(()=>_method=v!),
-                        title: const Text("COD (Thanh toán khi nhận hàng)"), subtitle: const Text("Giao hàng rồi trả tiền"),
-                        secondary: const Icon(Icons.delivery_dining_outlined),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-                const Text("Tóm tắt đơn hàng", style: TextStyle(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 8),
-                _line("Tạm tính", formatVnd(app.cartSubtotal)),
-                _line("Giảm", "- ${formatVnd(app.discount)}"),
-                _line("Phí vận chuyển", formatVnd(app.shippingFee)),
-                const Divider(height: 20),
-                _line("Tổng thanh toán", formatVnd(app.grandTotal), bold: true),
-                const SizedBox(height: 16),
-
-                Row(
-                  children: [
-                    Expanded(child: OutlinedButton(onPressed: ()=>Navigator.pop(context), child: const Text("Quay lại giỏ"))),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: app.cartSubtotal<=0 || _processing ? null : () async {
-                          context.read<AppState>().address = Address(fullName:_name.text, phone:_phone.text, line1:_addr.text, city:_city.text);
-
-                          final method = _method==PaymentMethod.cod ? "COD" : (_method==PaymentMethod.vnpay ? "VNPay" : "MoMo");
-
-                          if (_method == PaymentMethod.cod) {
-                            final order = await context.read<AppState>().placeCurrentOrder(method: method);
-                            if (!mounted) return;
-                            if (order!=null) {
-                              Navigator.pushReplacement(context, MaterialPageRoute(builder: (_)=> PaymentResultPage(success:true, method:method, orderId:order.id, amount:order.total)));
-                            }
-                            return;
-                          }
-
-                          await _simulateGateway(onSuccess: () async {
-                            final order = await context.read<AppState>().placeCurrentOrder(method: method);
-                            if (!mounted) return;
-                            if (order!=null) {
-                              Navigator.pushReplacement(context, MaterialPageRoute(builder: (_)=> PaymentResultPage(success:true, method:method, orderId:order.id, amount:order.total)));
-                            }
-                          });
-                        },
-                        child: _processing
-                          ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                          : Text("Thanh toán  ${formatVnd(app.grandTotal)}"),
-                      ),
+                Expanded(
+                  child: TextField(
+                    controller: _couponCtl,
+                    decoration: const InputDecoration(
+                      hintText: 'Nhập mã (ví dụ: FIT30, NEW10)',
+                      border: OutlineInputBorder(),
                     ),
-                  ],
-                )
+                    textCapitalization: TextCapitalization.characters,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: app.cart.isEmpty ? null : _applyCoupon,
+                  child: const Text('Áp dụng'),
+                ),
               ],
             ),
-            if (_processing) Positioned.fill(child: Container(color: Colors.black.withOpacity(0.05))),
+            if (app.couponCode != null) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                children: [
+                  Chip(
+                    label: Text('Mã: ${app.couponCode}'),
+                    deleteIcon: const Icon(Icons.clear),
+                    onDeleted: _clearCoupon,
+                  ),
+                  Text('Giảm: ${formatVnd(app.discount)}',
+                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ],
+            const SizedBox(height: 16),
+
+            // Vận chuyển
+            const Text('Vận chuyển',
+                style: TextStyle(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              value: app.shippingOptions
+                      .firstWhere((e) => e['fee'] == app.shippingFee)['code']
+                  as String,
+              items: app.shippingOptions
+                  .map((e) => DropdownMenuItem<String>(
+                        value: e['code'] as String,
+                        child: Text(
+                            '${e['label']} • ${formatVnd(e['fee'] as int)}'),
+                      ))
+                  .toList(),
+              onChanged: (v) {
+                if (v != null) context.read<AppState>().setShipping(v);
+              },
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Phương thức thanh toán
+            const Text('Phương thức thanh toán',
+                style: TextStyle(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 6),
+            _methodTile('COD', 'Thanh toán khi nhận hàng'),
+            _methodTile('VNPay', 'Cổng VNPay (mô phỏng)'),
+            _methodTile('MoMo', 'Ví MoMo (mô phỏng)'),
+            const SizedBox(height: 16),
+
+            // Tóm tắt
+            const Text('Tóm tắt đơn hàng',
+                style: TextStyle(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  children: [
+                    _line('Tạm tính', formatVnd(app.cartSubtotal)),
+                    _line('Giảm giá', '- ${formatVnd(app.discount)}'),
+                    _line('Phí vận chuyển', formatVnd(app.shippingFee)),
+                    const Divider(),
+                    _line('Tổng thanh toán', formatVnd(app.grandTotal),
+                        bold: true),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
           ],
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        minimum: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+        child: FilledButton(
+          onPressed: _placeOrder,
+          child: Text('Đặt hàng • ${formatVnd(app.grandTotal)}'),
         ),
       ),
     );
   }
 
-  Widget _line(String label, String value, {bool bold=false}) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 6),
-    child: Row(children: [
-      Expanded(child: Text(label)),
-      Text(value, style: TextStyle(fontWeight: bold? FontWeight.w800 : FontWeight.w500)),
-    ]),
-  );
+  Widget _methodTile(String value, String subtitle) {
+    return RadioListTile<String>(
+      value: value,
+      groupValue: _method,
+      onChanged: (v) => setState(() => _method = v ?? 'COD'),
+      title: Text(
+        value == 'COD'
+            ? 'Thanh toán khi nhận hàng (COD)'
+            : (value == 'VNPay' ? 'VNPay' : 'MoMo'),
+      ),
+      subtitle: Text(subtitle),
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+    );
+  }
+
+  Widget _line(String left, String right, {bool bold = false}) {
+    final style = TextStyle(
+      fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+    );
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(left,
+                style: style, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                right,
+                style: style,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.right,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
