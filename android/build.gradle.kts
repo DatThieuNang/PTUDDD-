@@ -1,3 +1,10 @@
+// android/build.gradle.kts
+
+// Khai báo plugin Google Services ở root (apply false)
+plugins {
+    id("com.google.gms.google-services") version "4.4.3" apply false
+}
+
 allprojects {
     repositories {
         google()
@@ -5,6 +12,7 @@ allprojects {
     }
 }
 
+// (Giữ nguyên tối ưu build dir theo template Flutter)
 val newBuildDir: Directory =
     rootProject.layout.buildDirectory
         .dir("../../build")
@@ -16,6 +24,7 @@ subprojects {
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 }
 subprojects {
+    // Bảo đảm app được evaluate đúng thứ tự (theo template Flutter)
     project.evaluationDependsOn(":app")
 }
 

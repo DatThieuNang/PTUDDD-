@@ -1,10 +1,9 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sports_books/presentation/auth/auth_state.dart';
-import '../orders/orders_page.dart';
 
-class TabProfile extends StatelessWidget {
-  const TabProfile({super.key});
+class ProfilePage extends StatelessWidget {
+  const ProfilePage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -40,25 +39,10 @@ class TabProfile extends StatelessWidget {
           ),
           const Divider(height: 32),
 
-          ListTile(
-            leading: const Icon(Icons.receipt_long_outlined),
-            title: const Text('Đơn hàng của tôi'),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const OrdersPage()),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.settings_outlined),
-            title: const Text('Cài đặt (đang cập nhật)'),
-            onTap: () {},
-          ),
+          // (Bạn bổ sung các mục khác nếu cần)
 
           const SizedBox(height: 24),
 
-          // Trạng thái
           if (s.status == AuthStatus.loading)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 8),
@@ -70,7 +54,6 @@ class TabProfile extends StatelessWidget {
               child: Text(s.error!, style: const TextStyle(color: Colors.red)),
             ),
 
-          // Hành động
           if (s.isSignedIn)
             ElevatedButton.icon(
               onPressed: () => context.read<AuthState>().signOut(),
@@ -90,8 +73,6 @@ class TabProfile extends StatelessWidget {
               label: const Text('Đăng nhập Google'),
             ),
           ],
-
-          const SizedBox(height: 32), // chừa khoảng tránh đụng bottom bar
         ],
       ),
     );

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "437473179671",
+    "project_id": "sportsbooks-dev",
+    "storage_bucket": "sportsbooks-dev.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:437473179671:android:86c80782fb1deea1728452",
+        "android_client_info": {
+          "package_name": "com.example.sports_books"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBmCyIl4uFieGQwsL3NmeKncPFasZURPrk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

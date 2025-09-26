@@ -3,9 +3,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    // Flutter Gradle Plugin phải sau Android/Kotlin
     id("dev.flutter.flutter-gradle-plugin")
-    // Google Services (Firebase)
     id("com.google.gms.google-services")
 }
 
@@ -18,9 +16,7 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
-    }
+    kotlinOptions { jvmTarget = "17" }
 
     defaultConfig {
         applicationId = "com.example.sports_books"
@@ -32,19 +28,16 @@ android {
 
     buildTypes {
         debug {
-            // Tắt shrink/minify ở debug để tránh lỗi "Removing unused resources..."
             isMinifyEnabled = false
-            isShrinkResources = false
+            isShrinkResources = false   // ✅ dùng isShrinkResources
         }
         release {
-            // Bạn có thể bật lại khi cần tối ưu size
             isMinifyEnabled = false
-            isShrinkResources = false
-
-            // Dùng debug keystore để chạy nhanh; khi phát hành hãy tạo signing riêng
+            isShrinkResources = false   // ✅ dùng isShrinkResources
             signingConfig = signingConfigs.getByName("debug")
-
-            // Nếu bật minify/shrink, thêm proguard:
+            // Khi cần tối ưu size thật sự:
+            // isMinifyEnabled = true
+            // isShrinkResources = true
             // proguardFiles(
             //     getDefaultProguardFile("proguard-android-optimize.txt"),
             //     "proguard-rules.pro",
@@ -53,6 +46,4 @@ android {
     }
 }
 
-flutter {
-    source = "../.."
-}
+flutter { source = "../.." }

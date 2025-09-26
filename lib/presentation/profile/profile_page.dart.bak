@@ -1,0 +1,87 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../auth/auth_state.dart';
+
+class ProfilePage extends StatelessWidget {
+  const ProfilePage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<AuthState>();
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Hồ sơ')),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            ListTile(
+              leading: const Icon(Icons.person),
+              title: Text(
+                s.isSignedIn
+                    ? (s.user?.email ?? 'Đã đăng nhập')
+                    : 'Xin chào, Khách',
+              ),
+              subtitle: Text(
+                s.isSignedIn
+                    ? 'Đăng nhập bằng ${s.user?.providerData.first.providerId}'
+                    : 'Hồ sơ đang cập nhật',
+              ),
+            ),
+            const Divider(height: 32),
+
+            ListTile(
+              leading: const Icon(Icons.receipt_long),
+              title: const Text('Đơn hàng của tôi'),
+              onTap: () {},
+            ),
+            ListTile(
+              leading: const Icon(Icons.settings),
+              title: const Text('Cài đặt'),
+              onTap: () {},
+            ),
+
+            const SizedBox(height: 24),
+
+            // Trạng thái
+            if (s.status == AuthStatus.loading)
+              const Center(
+                  child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: CircularProgressIndicator(),
+              )),
+            if (s.status == AuthStatus.error && s.error != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child:
+                    Text(s.error!, style: const TextStyle(color: Colors.red)),
+              ),
+
+            // Nút hành động
+            if (s.isSignedIn)
+              ElevatedButton.icon(
+                onPressed: () => context.read<AuthState>().signOut(),
+                icon: const Icon(Icons.logout),
+                label: const Text('Đăng xuất'),
+              )
+            else ...[
+              ElevatedButton.icon(
+                onPressed: () => Navigator.of(context).pushNamed('/login'),
+                icon: const Icon(Icons.login),
+                label: const Text('Đăng nhập'),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: () => context.read<AuthState>().signInWithGoogle(),
+                icon: const Icon(Icons.g_mobiledata),
+                label: const Text('Đăng nhập Google'),
+              ),
+            ],
+
+            const SizedBox(height: 32), // dư ra để tránh đụng bottom bar
+          ],
+        ),
+      ),
+    );
+  }
+}

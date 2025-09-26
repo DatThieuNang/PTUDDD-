@@ -1,0 +1,56 @@
+﻿/*
+ * lib/data/datasources/auth_remote_data_source.dart
+ * Hỗ trợ: Email/Password + Google Sign-In (google_sign_in ^7.2.0)
+ */
+import "package:firebase_auth/firebase_auth.dart";
+import "package:google_sign_in/google_sign_in.dart";
+
+class AuthRemoteDataSource {
+  final FirebaseAuth _auth;
+  final GoogleSignIn _google;
+
+  AuthRemoteDataSource({
+    FirebaseAuth? auth,
+    GoogleSignIn? google,
+  })  : _auth = auth ?? FirebaseAuth.instance,
+        _google = google ?? GoogleSignIn(); // ok với google_sign_in 7.2.0
+
+  Stream<User?> authState() => _auth.authStateChanges();
+  User? current() => _auth.currentUser;
+
+  // Email/Password
+  Future<User> registerEmail(String email, String pass) async {
+    final cred = await _auth.createUserWithEmailAndPassword(email: email, password: pass);
+    if (cred.user == null) throw FirebaseAuthException(code: "no-user", message: "No user returned");
+    return cred.user!;
+  }
+
+  Future<User> signInEmail(String email, String pass) async {
+    final cred = await _auth.signInWithEmailAndPassword(email: email, password: pass);
+    if (cred.user == null) throw FirebaseAuthException(code: "no-user", message: "No user returned");
+    return cred.user!;
+  }
+
+  // Google Sign-In
+  Future<User> signInGoogle() async {
+    final googleUser = await _google.signIn();         // chọn account
+    if (googleUser == null) {
+      throw FirebaseAuthException(code: "aborted", message: "Google Sign-In cancelled");
+    }
+    final auth = await googleUser.authentication;      // token/idToken
+    final credential = GoogleAuthProvider.credential(
+      accessToken: auth.accessToken,
+      idToken: auth.idToken,
+    );
+    final result = await _auth.signInWithCredential(credential);
+    if (result.user == null) {
+      throw FirebaseAuthException(code: "no-user", message: "No user returned");
+    }
+    return result.user!;
+  }
+
+  Future<void> signOut() async {
+    try { await _google.signOut(); } catch (_) {}
+    await _auth.signOut();
+  }
+}

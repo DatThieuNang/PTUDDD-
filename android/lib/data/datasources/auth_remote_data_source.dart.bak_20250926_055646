@@ -1,0 +1,34 @@
+﻿/*
+ * lib/data/datasources/auth_remote_data_source.dart
+ * Bản rút gọn: chỉ dùng FirebaseAuth (email/password), tạm bỏ Google Sign-In
+ */
+import 'package:firebase_auth/firebase_auth.dart';
+
+class AuthRemoteDataSource {
+  final FirebaseAuth _auth;
+
+  AuthRemoteDataSource({FirebaseAuth? auth}) : _auth = auth ?? FirebaseAuth.instance;
+
+  Stream<User?> authState() => _auth.authStateChanges();
+  User? current() => _auth.currentUser;
+
+  Future<User> signInEmail(String email, String pass) async {
+    final cred = await _auth.signInWithEmailAndPassword(email: email, password: pass);
+    return cred.user!;
+  }
+
+  Future<User> registerEmail(String email, String pass) async {
+    final cred = await _auth.createUserWithEmailAndPassword(email: email, password: pass);
+    return cred.user!;
+  }
+
+  /// TẠM THỜI tắt Google Sign-In để tránh lỗi biên dịch với google_sign_in.
+  /// Khi cần bật lại, ta sẽ dùng gói google_sign_in hoặc Firebase Auth with Google credential.
+  Future<User> signInGoogle() async {
+    throw UnsupportedError('Google Sign-In is not configured yet.');
+  }
+
+  Future<void> signOut() async {
+    await _auth.signOut();
+  }
+}
