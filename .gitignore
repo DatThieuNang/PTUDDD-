@@ -1,12 +1,8 @@
-﻿# Flutter / Dart
-.dart_tool/
-build/
+﻿# Backups / temp
+*.bak
+*.bak_*
+lib/main.dart.bak
+lib/presentation/**/.bak*
 
-# IDE
-.vscode/
-.idea/
-
-# Keystore (tuyệt đối không push)
-**/*.keystore
-**/*.jks
+# Firebase secrets (không đưa lên git)
 android/app/google-services.json
